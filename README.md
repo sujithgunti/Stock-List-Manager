@@ -1,4 +1,4 @@
-# TradingView Stock Symbol List Manager
+# Stock Symbol List Manager
 
 A modern browser extension for managing TradingView stock symbol lists with CSV upload and text input support, built with WXT framework, React, and TypeScript.
 
