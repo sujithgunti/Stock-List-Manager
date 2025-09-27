@@ -222,6 +222,254 @@ A browser extension for managing TradingView stock symbol lists with CSV upload 
 
 ---
 
+## Phase 6: TradingView Multi-Tab Integration 🔗 ✅ COMPLETED
+*Duration: 60-90 minutes*
+
+### 6.1 Content Script Enhancement
+- [x] ✅ **TradingView Domain Targeting**: Update content script to run on all TradingView pages
+  - Updated `matches` pattern to include `*://*.tradingview.com/*` and `*://in.tradingview.com/*`
+  - Support both global and Indian TradingView domains
+  - Handle different chart layouts and page structures
+
+- [x] ✅ **Floating Widget Creation**: Develop non-intrusive floating widget
+  - Position widget in top-right corner of TradingView pages
+  - Minimize/maximize functionality to avoid blocking charts
+  - Responsive design that adapts to different screen sizes
+  - Z-index management to stay above chart elements
+
+### 6.2 Cross-Tab Communication
+- [x] ✅ **Data Synchronization**: Enable real-time data sync between popup and content scripts
+  - Use Chrome Extension messaging API for communication
+  - Sync symbol lists and current selections across all TradingView tabs
+  - Handle multiple tab instances gracefully
+  - Implement background script coordination for data consistency
+
+- [x] ✅ **State Management**: Maintain consistent state across tabs
+  - Share current symbol list selection across all TradingView instances
+  - Synchronize list updates (create, rename, delete) in real-time
+  - Handle storage events for immediate updates
+
+### 6.3 Enhanced User Experience
+- [x] ✅ **Keyboard Shortcuts**: Add convenient keyboard controls
+  - `Ctrl+Shift+S` to toggle widget visibility
+  - `Escape` key to minimize widget
+  - Quick navigation between lists with number keys
+  - Symbol search within lists
+
+- [x] ✅ **Smart Positioning**: Intelligent widget placement
+  - Auto-detect chart boundaries and position accordingly
+  - Remember user's preferred position per TradingView layout
+  - Collision detection with TradingView UI elements
+  - Smooth animations for show/hide transitions
+
+### 6.4 Widget Component Architecture
+- [x] ✅ **Floating Widget Component** (`entrypoints/content.ts:240`):
+  - Mini symbol list display with scroll capability
+  - Quick list switcher dropdown
+  - Symbol click handlers for same-tab navigation
+  - Compact mode with expand/collapse functionality
+
+- [x] ✅ **Content Script Integration** (`entrypoints/content.ts:272`):
+  - Initialize widget on TradingView page load
+  - Handle page navigation and SPA routing
+  - Clean up resources when leaving TradingView domains
+  - Error handling for script injection issues
+
+### 6.5 Background Script Coordination
+- [x] ✅ **Message Routing** (`entrypoints/background.ts:215`):
+  - Route messages between popup and content scripts
+  - Handle cross-tab communication
+  - Manage storage updates and broadcasting
+  - Implement retry logic for failed messages
+
+- [x] ✅ **Performance Optimization**:
+  - Debounce rapid storage updates
+  - Cache frequently accessed data
+  - Lazy load widget components
+  - Memory cleanup for inactive tabs
+
+**Deliverables**: ✅ Fully integrated multi-tab TradingView experience with floating widget and real-time synchronization
+
+**Implementation Workflow**:
+1. ✅ Update content script domain matching
+2. ✅ Create floating widget React component
+3. ✅ Implement Chrome Extension messaging
+4. ✅ Add keyboard shortcuts and positioning
+5. ✅ Test across multiple TradingView tabs
+6. ✅ Performance optimization and cleanup
+
+---
+
+## Phase 6.1: Enhanced Symbol Navigation Options 🔗 ✅ COMPLETED
+*Duration: 15-20 minutes*
+
+### 6.1.1 Current Status Analysis
+- ✅ **Phase 6 Complete**: Floating widget displays lists and symbols correctly
+- ✅ **Symbol Display**: Color-coded badges (NSE=green, BSE=orange) working
+- ✅ **List Interaction**: Clicking lists shows symbols below
+- ✅ **Enhanced Navigation**: Added dual navigation options for each symbol
+
+### 6.1.2 Enhanced Symbol Display (`entrypoints/content.ts:260`)
+- [x] ✅ **Dual Navigation Buttons**: Replace single-click with two options per symbol
+  - **Same Tab Button** (📊): Navigate in current tab (existing behavior)
+  - **New Tab Button** (🔗): Open symbol in new tab using `window.open()`
+  - Maintain existing color-coded exchange badges (NSE=green, BSE=orange)
+  - Compact button layout to fit both options per symbol
+
+- [x] ✅ **Visual Improvements**:
+  - Add hover tooltips explaining each navigation option
+  - Use intuitive icons for clear distinction (📊 = same tab, 🔗 = new tab)
+  - Maintain consistent dark theme styling with semi-transparent buttons
+  - Ensure responsive layout within widget constraints
+
+### 6.1.3 Implementation Details
+- [x] ✅ **Navigation Functions** (`entrypoints/content.ts:252-260`):
+  ```javascript
+  // Implemented dual navigation options
+  window.openSymbolSameTab = function(exchange, symbol) {
+    const url = `https://in.tradingview.com/chart/?symbol=${exchange}%3A${symbol}`;
+    window.location.href = url;
+  };
+
+  window.openSymbolNewTab = function(exchange, symbol) {
+    const url = `https://in.tradingview.com/chart/?symbol=${exchange}%3A${symbol}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+  ```
+
+- [x] ✅ **Enhanced User Experience**:
+  - Hover tooltips: "Open in same tab" / "Open in new tab"
+  - Button hover effects with opacity transitions
+  - Consistent styling with existing dark theme
+  - Secure new tab opening with `noopener,noreferrer`
+
+### 6.1.4 Testing Status
+- [x] ✅ **Navigation Testing**: Both same-tab and new-tab options implemented correctly
+- [x] ✅ **URL Validation**: TradingView URLs generate properly for both methods
+- [x] ✅ **UI Responsiveness**: Widget layout accommodates dual buttons per symbol
+- [x] ✅ **Extension Build**: Successfully compiled and reloaded in development
+
+**Deliverables**: ✅ Enhanced floating widget with dual symbol navigation options and improved user experience
+
+### 6.1.5 Updated Symbol Display Structure
+Each symbol now displays as:
+```
+┌─────────────────────┐
+│   NSE:BHARATGEAR   │  ← Color-coded badge
+│     [📊]  [🔗]     │  ← Same tab / New tab buttons
+└─────────────────────┘
+```
+
+---
+
+## Phase 6.2: FloatingWidget Modernization & State Persistence 🎨 ✅ COMPLETED
+*Duration: 90-120 minutes*
+
+### 6.2.1 Widget Design Modernization
+- [x] ✅ **Component Architecture Redesign** (`entrypoints/content/FloatingWidget.tsx`):
+  - Converted from plain HTML/CSS to React-based component system
+  - Self-contained UI components (Card, Button, Badge, Input) to avoid import conflicts
+  - Complete CSS-in-JS styling (400+ lines) matching main popup design
+  - Inline TypeScript interfaces to eliminate dependency issues
+
+- [x] ✅ **Layout Transformation**:
+  - **From**: Small badges in flex-wrap layout
+  - **To**: Row-based design matching main popup exactly
+  - Professional symbol rows with proper hover effects and spacing
+  - Search functionality (appears when >3 symbols)
+  - Exchange statistics with badge counts (NSE: X, BSE: Y)
+
+### 6.2.2 Color Theme Consistency
+- [x] ✅ **Badge Color System**:
+  - **NSE Badges**: Blue theme (`rgba(41, 98, 255, 0.2)` background, `#60a5fa` text)
+  - **BSE Badges**: Orange theme (`rgba(255, 152, 0, 0.2)` background, `#FF9800` text)
+  - Matches exactly with main popup color scheme
+  - Proper border styling with semi-transparent borders
+
+- [x] ✅ **Dark Theme Variables** (`entrypoints/content.ts:183-208`):
+  ```css
+  --background: #1E222D;
+  --background-card: #2A2E39;
+  --background-muted: #131722;
+  --foreground: #D1D4DC;
+  --foreground-muted: #9598A1;
+  --primary-500: #2962FF;
+  --warning: #FF9800;
+  ```
+
+### 6.2.3 State Persistence System
+- [x] ✅ **Cross-Navigation State Management** (`entrypoints/content.ts:24-79`):
+  - **Overlay Visibility**: Preserves widget open/closed state across page navigation
+  - **Selected List**: Remembers which list user was viewing
+  - **Search Term**: Maintains search query across navigation
+  - **Ultra-fast Restoration**: 50ms timing for near-instant restoration
+
+- [x] ✅ **SessionStorage Implementation**:
+  ```javascript
+  const WIDGET_STATE = {
+    visible: 'tv-widget-visible',
+    selectedListId: 'tv-widget-selected-list',
+    searchTerm: 'tv-widget-search'
+  };
+  ```
+
+### 6.2.4 Navigation Behavior Optimization
+- [x] ✅ **Same-Tab Navigation Fixed**:
+  - **Default Click**: Opens symbols in same tab as requested
+  - **State Preservation**: Overlay automatically restores after page reload
+  - **Smooth Transitions**: CSS animations during show/hide (0.2s fade + slide)
+  - **Intelligent Timing**: Content script restoration optimized for performance
+
+- [x] ✅ **Dual Navigation Options** (`entrypoints/content/FloatingWidget.tsx:380-405`):
+  - **👆 Button**: Current tab navigation with state restoration
+  - **🔗 Button**: New tab navigation (keeps overlay open)
+  - **Clear Tooltips**: Explanatory hover text for user guidance
+  - **Event Delegation**: Proper click handling with stopPropagation
+
+### 6.2.5 Enhanced User Experience
+- [x] ✅ **Smooth Animations** (`entrypoints/content.ts:93-102`):
+  ```css
+  transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+  transform: translateY(-10px); /* Initial state */
+  opacity: 0;
+  ```
+
+- [x] ✅ **Professional Interactions**:
+  - Hover effects on symbol rows (`bg-background-muted hover:bg-background-muted/80`)
+  - Group hover reveals navigation buttons (`opacity-0 group-hover:opacity-100`)
+  - Smooth state transitions during navigation
+  - Consistent spacing and typography matching main popup
+
+### 6.2.6 Technical Implementation Details
+- [x] ✅ **CSS-in-JS Complete Styling** (`entrypoints/content.ts:236-435`):
+  - 400+ lines of comprehensive styling
+  - All Tailwind classes manually implemented for shadow DOM isolation
+  - Badge variants, button states, input styling, transitions
+  - No external CSS dependencies to avoid build conflicts
+
+- [x] ✅ **React Component Integration**:
+  - Props-based state management with `initialState` and `onStateChange`
+  - useEffect hooks for state restoration and persistence
+  - useMemo for optimized symbol filtering and statistics
+  - useCallback for performance-optimized event handlers
+
+### 6.2.7 Problem Resolution
+- [x] ✅ **Build Issues Resolved**:
+  - **Problem**: CSS import errors causing build failures
+  - **Solution**: Self-contained styling with complete CSS-in-JS implementation
+  - **Problem**: Overlay closing on symbol navigation
+  - **Solution**: State persistence system with 50ms restoration timing
+
+- [x] ✅ **User Experience Issues**:
+  - **Problem**: Inconsistent styling between popup and overlay
+  - **Solution**: Exact design replication with proper color schemes
+  - **Problem**: Lost search and list selection after navigation
+  - **Solution**: Comprehensive state preservation across page reloads
+
+**Deliverables**: ✅ Modernized floating widget with professional design, state persistence, and optimized same-tab navigation experience
+
+---
+
 ## Final Checklist ✅
 
 ### Functionality ✅ COMPLETED
@@ -263,12 +511,23 @@ A browser extension for managing TradingView stock symbol lists with CSV upload 
 5. **Badge System**: NSE/BSE color-coded badges for easy identification
 6. **Interactive Elements**: Hover effects, transitions, and loading states
 
+### Floating Widget Modernization (Phase 6.2)
+1. **Professional Design**: Complete floating widget redesign with shadcn/ui styling
+2. **State Persistence**: Overlay automatically restores after same-tab navigation
+3. **Layout Consistency**: Row-based symbol display matching main popup exactly
+4. **Color Theme**: Perfect NSE/BSE badge color matching (blue/orange)
+5. **Smart Navigation**: Dual options (same-tab with restoration, new-tab persistent)
+6. **Performance**: Ultra-fast 50ms restoration with smooth CSS animations
+7. **Self-contained Styling**: 400+ lines CSS-in-JS for shadow DOM isolation
+
 ### Enhanced Functionality
 1. **Smart List Creation**: Text input always creates new lists
 2. **Symbol Preview**: See extracted symbols before creating lists
 3. **Error Handling**: Comprehensive error messages and validation
 4. **BOM Support**: Handles CSV files with Byte Order Mark
 5. **Flexible Parsing**: Auto-detects CSV column structure
+6. **TradingView Integration**: Multi-tab floating widget with same-tab navigation
+7. **State Persistence**: Overlay state preserved across page navigation
 
 ### State Management
 - React hooks-based state management
@@ -334,4 +593,4 @@ https://in.tradingview.com/chart/?symbol=BSE%3ACIANAGRO
 
 ---
 
-*This plan tracks systematic development with clear milestones. Currently 85% complete with modern UI and full functionality implemented.*
+*This plan tracks systematic development with clear milestones. Currently 95% complete with modern UI, full functionality, and advanced floating widget integration implemented.*
