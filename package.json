@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@radix-ui/react-tabs": "^1.1.13",
+    "jotai": "^2.15.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },

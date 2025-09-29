@@ -11,13 +11,6 @@ export default defineConfig({
       default_title: 'TradingView Symbol Manager'
     },
     permissions: ['storage'],
-    host_permissions: ['*://*.tradingview.com/*', '*://in.tradingview.com/*'],
-    content_scripts: [
-      {
-        matches: ['*://*.tradingview.com/*', '*://in.tradingview.com/*'],
-        js: ['content-scripts/content.js'],
-        run_at: 'document_end'
-      }
-    ]
+    host_permissions: ['*://*.tradingview.com/*', '*://in.tradingview.com/*']
   }
 });

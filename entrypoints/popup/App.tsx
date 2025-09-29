@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect } from 'react';
 import { FileUpload } from './components/FileUpload';
 import { TextInput } from './components/TextInput';
 import { SymbolList } from './components/SymbolList';
@@ -7,253 +7,84 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card';
 import {
   StockSymbol,
-  SymbolList as SymbolListType,
-  ParseResult,
-  AppSettings
+  ParseResult
 } from './types/index';
-import { storage } from './utils/storage';
-import { parseTextInput, removeDuplicateSymbols } from './utils/parser';
+import {
+  useSymbolListManager,
+  useActiveTab,
+  useTextInput,
+  useSuccessMessage
+} from './atoms/hooks';
 import './App.css';
 
-type TabType = 'upload' | 'text' | 'lists';
-
 function App() {
-  // State management
-  const [activeTab, setActiveTab] = useState<TabType>('upload');
-  const [currentList, setCurrentList] = useState<SymbolListType | null>(null);
-  const [allLists, setAllLists] = useState<SymbolListType[]>([]);
-  const [textInput, setTextInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string>('');
-  const [successMessage, setSuccessMessage] = useState<string>('');
-  const [settings, setSettings] = useState<AppSettings | null>(null);
+  // Jotai state management
+  const [activeTab, setActiveTab] = useActiveTab();
+  const [textInput, setTextInput] = useTextInput();
+  const { successMessage, clearSuccess } = useSuccessMessage();
 
-  // Load data on component mount
-  useEffect(() => {
-    loadInitialData();
-  }, []);
+  const {
+    symbolLists,
+    currentList,
+    isLoading,
+    error,
+    setCurrentListId,
+    createList,
+    updateList,
+    deleteList,
+    removeSymbol,
+    handleParsedSymbols,
+    clearError
+  } = useSymbolListManager();
 
-  // Auto-dismiss success messages after 5 seconds
+  // Auto-dismiss success messages (handled automatically by Jotai atoms)
   useEffect(() => {
     if (successMessage) {
       const timer = setTimeout(() => {
-        setSuccessMessage('');
+        clearSuccess();
       }, 5000);
       return () => clearTimeout(timer);
     }
-  }, [successMessage]);
+  }, [successMessage, clearSuccess]);
 
-  const loadInitialData = useCallback(async () => {
-    try {
-      setIsLoading(true);
-
-      // Load settings
-      const appSettings = await storage.getSettings();
-      setSettings(appSettings);
-
-      // Load all lists
-      const lists = await storage.getAllLists();
-      setAllLists(lists);
-
-      // Load current list
-      const current = await storage.getCurrentList();
-      setCurrentList(current);
-
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to load data';
-      setError(message);
-      console.error('Load error:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  // File upload handlers
-  const handleFileSelect = useCallback((file: File) => {
-    setError('');
-    setSuccessMessage('');
+  // Event handlers - simplified with Jotai
+  const handleFileSelect = (file: File) => {
+    clearError();
+    clearSuccess();
     console.log('File selected:', file.name);
-  }, []);
+  };
 
-  const handleParsedSymbols = useCallback(async (result: ParseResult, customListName: string) => {
-    if (result.symbols.length === 0) {
-      setError('No valid symbols found in the file');
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-
-      // Use the custom list name provided by the FileUpload component
-      const newList = await storage.createList(customListName, result.symbols);
-      setCurrentList(newList);
-      await storage.setCurrentListId(newList.id);
-
-      // Refresh all lists
-      const lists = await storage.getAllLists();
-      setAllLists(lists);
-
-      // Show success message
-      setError(''); // Clear any previous errors
-      if (result.errors.length > 0) {
-        setSuccessMessage(`Created "${customListName}" with ${result.symbols.length} symbols and ${result.errors.length} errors`);
-      } else {
-        setSuccessMessage(`Successfully created "${customListName}" with ${result.symbols.length} symbols`);
-      }
-
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to create list';
-      setError(message);
-      console.error('Save error:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [currentList]);
-
-  // Text input handlers
-  const handleTextChange = useCallback((value: string) => {
+  const handleTextChange = (value: string) => {
     setTextInput(value);
-    setError('');
-    setSuccessMessage('');
-  }, []);
+    clearError();
+    clearSuccess();
+  };
 
-  const handleTextParsedSymbols = useCallback(async (result: ParseResult, customListName: string) => {
-    if (result.symbols.length === 0) {
-      setError('No valid symbols found in the text');
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-
-      // Use the custom list name provided by the TextInput component
-      const newList = await storage.createList(customListName, result.symbols);
-      setCurrentList(newList);
-      await storage.setCurrentListId(newList.id);
-
-      // Refresh all lists
-      const lists = await storage.getAllLists();
-      setAllLists(lists);
-
-      // Show success message
-      setError(''); // Clear any previous errors
-      if (result.errors.length > 0) {
-        setSuccessMessage(`Created "${customListName}" with ${result.symbols.length} symbols and ${result.errors.length} errors`);
-      } else {
-        setSuccessMessage(`Successfully created "${customListName}" with ${result.symbols.length} symbols`);
-      }
-
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to create list';
-      setError(message);
-      console.error('List creation error:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  // Symbol list handlers
-  const handleSymbolClick = useCallback((symbol: StockSymbol) => {
+  const handleSymbolClick = (symbol: StockSymbol) => {
     console.log('Symbol clicked:', symbol.fullSymbol);
-  }, []);
+  };
 
-  const handleSymbolDelete = useCallback(async (symbol: StockSymbol) => {
+  const handleSymbolDelete = async (symbol: StockSymbol) => {
     if (!currentList) return;
+    await removeSymbol({ listId: currentList.id, symbolToRemove: symbol });
+  };
 
-    try {
-      setIsLoading(true);
-      const updatedList = await storage.removeSymbolFromList(currentList.id, symbol);
-      setCurrentList(updatedList);
+  const handleListSelect = (list: any) => {
+    setCurrentListId(list.id);
+    clearError();
+  };
 
-      // Refresh all lists
-      const lists = await storage.getAllLists();
-      setAllLists(lists);
+  const handleListCreate = async (name: string) => {
+    await createList({ name });
+  };
 
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to delete symbol';
-      setError(message);
-      console.error('Delete error:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [currentList]);
+  const handleListRename = async (listId: string, newName: string) => {
+    await updateList({ listId, updates: { name: newName } });
+  };
 
-  // List management handlers
-  const handleListSelect = useCallback(async (list: SymbolListType) => {
-    try {
-      setCurrentList(list);
-      await storage.setCurrentListId(list.id);
-      setError('');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to select list';
-      setError(message);
-      console.error('Select error:', err);
-    }
-  }, []);
-
-  const handleListCreate = useCallback(async (name: string) => {
-    try {
-      setIsLoading(true);
-      const newList = await storage.createList(name);
-      setCurrentList(newList);
-      await storage.setCurrentListId(newList.id);
-
-      // Refresh all lists
-      const lists = await storage.getAllLists();
-      setAllLists(lists);
-
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to create list';
-      setError(message);
-      console.error('Create error:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  const handleListRename = useCallback(async (listId: string, newName: string) => {
-    try {
-      setIsLoading(true);
-      const updatedList = await storage.updateList(listId, { name: newName });
-
-      if (currentList?.id === listId) {
-        setCurrentList(updatedList);
-      }
-
-      // Refresh all lists
-      const lists = await storage.getAllLists();
-      setAllLists(lists);
-
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to rename list';
-      setError(message);
-      console.error('Rename error:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [currentList]);
-
-  const handleListDelete = useCallback(async (listId: string) => {
-    try {
-      setIsLoading(true);
-      await storage.deleteList(listId);
-
-      if (currentList?.id === listId) {
-        setCurrentList(null);
-      }
-
-      // Refresh all lists
-      const lists = await storage.getAllLists();
-      setAllLists(lists);
-
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to delete list';
-      setError(message);
-      console.error('Delete error:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [currentList]);
+  const handleListDelete = async (listId: string) => {
+    await deleteList(listId);
+  };
 
   return (
     <div className="w-full h-full flex flex-col bg-background">
@@ -310,7 +141,7 @@ function App() {
                 <TextInput
                   value={textInput}
                   onChange={handleTextChange}
-                  onParsedSymbols={handleTextParsedSymbols}
+                  onParsedSymbols={handleParsedSymbols}
                   isLoading={isLoading}
                   error={error}
                 />
@@ -321,7 +152,7 @@ function App() {
               <div className="h-full overflow-y-auto p-4 pt-3">
                 <div className="space-y-4">
                   <ListManager
-                    lists={allLists}
+                    lists={symbolLists}
                     currentList={currentList}
                     onListSelect={handleListSelect}
                     onListCreate={handleListCreate}

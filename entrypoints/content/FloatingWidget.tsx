@@ -26,17 +26,6 @@ interface FloatingWidgetProps {
   };
 }
 
-interface SymbolListsResponse {
-  success: boolean;
-  lists: SymbolList[];
-  error?: string;
-}
-
-interface ListResponse {
-  success: boolean;
-  list: SymbolList;
-  error?: string;
-}
 
 // Self-contained UI Components
 const Card = ({ className = '', children, onClick, ...props }: any) => (
@@ -94,21 +83,25 @@ export default function FloatingWidget({ onClose, onMinimize, onStateChange, ini
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState(initialState?.searchTerm || '');
+  const [currentListId, setCurrentListId] = useState<string | null>(null);
 
   // Load symbol lists on component mount
   useEffect(() => {
     loadSymbolLists();
   }, []);
 
-  // Restore selected list from saved state
+  // Restore selected list from saved state or current list ID
   useEffect(() => {
-    if (lists.length > 0 && initialState?.selectedListId) {
-      const savedList = lists.find(list => list.id === initialState.selectedListId);
-      if (savedList) {
-        setSelectedList(savedList);
+    if (lists.length > 0) {
+      let targetListId = initialState?.selectedListId || currentListId;
+      if (targetListId) {
+        const savedList = lists.find(list => list.id === targetListId);
+        if (savedList) {
+          setSelectedList(savedList);
+        }
       }
     }
-  }, [lists, initialState?.selectedListId]);
+  }, [lists, initialState?.selectedListId, currentListId]);
 
   // Save state when search term or selected list changes
   useEffect(() => {
@@ -117,23 +110,87 @@ export default function FloatingWidget({ onClose, onMinimize, onStateChange, ini
     }
   }, [selectedList?.id, searchTerm, onStateChange]);
 
+  // Listen for storage changes from popup
+  useEffect(() => {
+    const handleStorageChange = (changes: any, namespace: string) => {
+      if (namespace === 'local') {
+        if (changes.symbolLists) {
+          loadSymbolLists();
+        }
+      }
+    };
+
+    if (globalThis.chrome && globalThis.chrome.storage) {
+      globalThis.chrome.storage.onChanged.addListener(handleStorageChange);
+
+      return () => {
+        globalThis.chrome.storage.onChanged.removeListener(handleStorageChange);
+      };
+    }
+  }, []);
+
   const loadSymbolLists = async () => {
     try {
       setLoading(true);
       setError('');
 
-      const result = await chrome.runtime.sendMessage({
-        type: 'GET_ALL_LISTS'
-      }) as SymbolListsResponse;
-
-      if (result.success) {
-        setLists(result.lists);
-      } else {
-        setError('Failed to load symbol lists');
+      // Check if Chrome API is available
+      if (!globalThis.chrome || !globalThis.chrome.storage) {
+        throw new Error('Chrome extension APIs not available');
       }
+
+      const result = await globalThis.chrome.storage.local.get(['symbolLists', 'currentListId']);
+
+      // Parse data with compatibility for both Jotai JSON strings and raw objects
+      let lists: SymbolList[] = [];
+      let storedCurrentListId: string | null = null;
+
+      // Handle symbolLists - could be JSON string (Jotai) or raw array
+      if (result.symbolLists) {
+        if (typeof result.symbolLists === 'string') {
+          try {
+            lists = JSON.parse(result.symbolLists);
+          } catch (parseError) {
+            console.error('Failed to parse symbolLists JSON:', parseError);
+            lists = [];
+          }
+        } else if (Array.isArray(result.symbolLists)) {
+          lists = result.symbolLists;
+        } else {
+          console.warn('Unexpected symbolLists format:', typeof result.symbolLists);
+          lists = [];
+        }
+      }
+
+      // Handle currentListId - could be JSON string (Jotai) or raw value
+      if (result.currentListId !== undefined && result.currentListId !== null) {
+        if (typeof result.currentListId === 'string') {
+          // Could be a JSON string or just a regular string
+          if (result.currentListId.startsWith('"') && result.currentListId.endsWith('"')) {
+            try {
+              storedCurrentListId = JSON.parse(result.currentListId);
+            } catch (parseError) {
+              storedCurrentListId = result.currentListId;
+            }
+          } else {
+            storedCurrentListId = result.currentListId;
+          }
+        } else {
+          storedCurrentListId = result.currentListId;
+        }
+      }
+
+      // Validate that lists is actually an array
+      if (!Array.isArray(lists)) {
+        console.error('lists is not an array:', lists);
+        lists = [];
+      }
+
+      setLists(lists);
+      setCurrentListId(storedCurrentListId);
     } catch (err) {
       console.error('Error loading symbol lists:', err);
-      setError('Failed to connect to extension');
+      setError('Failed to load symbol lists');
     } finally {
       setLoading(false);
     }
@@ -141,16 +198,16 @@ export default function FloatingWidget({ onClose, onMinimize, onStateChange, ini
 
   const selectList = async (listId: string) => {
     try {
-      const result = await chrome.runtime.sendMessage({
-        type: 'GET_LIST',
-        listId: listId
-      }) as ListResponse;
-
-      if (result.success && result.list) {
-        setSelectedList(result.list);
+      // Find the list from already loaded lists
+      const list = lists.find(l => l.id === listId);
+      if (list) {
+        setSelectedList(list);
         setSearchTerm(''); // Reset search when selecting a list
+
+        // Update currentListId in storage
+        globalThis.chrome.storage.local.set({ currentListId: listId }).catch(console.error);
       } else {
-        setError('Failed to load list details');
+        setError('Failed to find list');
       }
     } catch (err) {
       console.error('Error selecting list:', err);
