@@ -593,4 +593,174 @@ https://in.tradingview.com/chart/?symbol=BSE%3ACIANAGRO
 
 ---
 
-*This plan tracks systematic development with clear milestones. Currently 95% complete with modern UI, full functionality, and advanced floating widget integration implemented.*
+## Phase 7: Color-Based Lists & Multi-List Enhancement 🎨 ✅ COMPLETED
+*Duration: 6-8 hours*
+
+### 7.1 Schema & Type Updates ✅ COMPLETED
+- [x] ✅ **Enhanced SymbolList Interface**:
+  - Add `color: string` field (hex color like "#ef4444")
+  - Add `isPredefined: boolean` flag for system lists
+  - Add `isFavoriteList: boolean` for favorite marking
+
+- [x] ✅ **Enhanced StockSymbol Interface**:
+  - Add `addedAt: Date` timestamp for when added to list
+  - Add `notes?: string` for per-list symbol notes
+
+- [x] ✅ **New Interfaces**:
+  - Create `ListReference` interface for cross-list indicators
+  - Create predefined color constants (6 predefined lists)
+  - Create available colors palette (12 colors for custom lists)
+
+### 7.2 Jotai Atoms Enhancement ✅ COMPLETED
+- [x] ✅ **New Derived Atoms**:
+  - `favoriteListsAtom`: Lists marked as favorites
+  - `predefinedListsAtom`: System predefined lists
+  - `customListsAtom`: User-created lists
+  - `symbolOccurrencesAtom`: Cross-list symbol tracking
+
+- [x] ✅ **New Action Atoms**:
+  - `toggleListFavoriteAtom`: Mark/unmark list as favorite
+  - `moveSymbolAtom`: Move symbol between lists
+  - `copySymbolAtom`: Copy symbol to another list
+  - Update `createListAtom` to support color and flags
+
+### 7.3 Predefined Lists Initialization ✅ COMPLETED
+- [x] ✅ **First-Run Setup**:
+  - Create 6 predefined colored lists on first install
+    - 🔴 Red List (#ef4444)
+    - 🔵 Blue List (#3b82f6)
+    - 🟢 Green List (#10b981)
+    - 🟠 Orange List (#f59e0b)
+    - 🟣 Purple List (#8b5cf6)
+    - ⭐ Favorites (#ffd700, marked as favorite)
+
+- [x] ✅ **Migration Strategy**:
+  - Detect existing users and add colors to existing lists
+  - Backfill `addedAt` timestamps for existing symbols
+  - Create predefined lists if they don't exist
+
+### 7.4 List Management UI Updates ⏳ PENDING
+- [ ] **ListManager.tsx Enhancements**:
+  - Add color border indicators (border-left-4 with list color)
+  - Add favorite toggle button (⭐/☆ star icon)
+  - Create "Create Custom List" dialog with color picker
+  - Group lists into sections: Favorites → Predefined → Custom
+  - Add "Predefined" badge to system lists
+  - Show color dots in list selection dropdown
+
+### 7.5 Symbol Row Cross-List Indicators ✅ COMPLETED
+- [x] ✅ **SymbolList.tsx Enhancements (Main Popup)**:
+  - Star icon (☆/★) on LEFT of each symbol
+  - ☆ (outline) when only in current list
+  - ★ (gold filled) when in multiple lists
+  - Click star to open MultiListSelector modal
+  - Modal shows all lists grouped by type (⭐ Favorites / 🎨 Predefined / 📝 Custom)
+  - Color dots indicating each list's color
+  - Checkbox interface for add/remove from lists
+  - Protection against removing from current list
+  - Duplicate prevention when copying
+
+- [x] ✅ **FloatingWidget.tsx Enhancements**:
+  - Star icon (☆/★) on LEFT of each symbol in floating widget
+  - Same functionality as main popup
+  - MultiListSelector modal with checkbox overlay
+  - Real-time Chrome Storage updates
+  - Smooth animations (fade-in, slide-in)
+  - Complete CSS-in-JS styling for shadow DOM isolation
+
+### 7.6 Move & Copy Symbol Functionality ✅ COMPLETED
+- [x] ✅ **Symbol Transfer Operations**:
+  - Implement copy symbol (add to target list via modal checkboxes)
+  - Implement remove symbol (remove from target list via modal checkboxes)
+  - Update `addedAt` timestamp on transfer
+  - Real-time list reloading after changes
+  - Works in both main popup and floating widget
+
+### 7.7 Floating Widget Updates ✅ COMPLETED
+- [x] ✅ **FloatingWidget.tsx Multi-List Implementation**:
+  - Star indicators for cross-list symbols
+  - MultiListSelector modal with full functionality
+  - Color dots on list indicators
+  - symbolOccurrences tracking
+  - Chrome Storage synchronization
+  - All CSS animations and styles
+  - Matches main popup functionality exactly
+
+### 7.8 Data Migration & Testing ⏳ PENDING BROWSER TESTING
+- [x] ✅ **Backward Compatibility**:
+  - Migration implemented in App.tsx
+  - Adds default colors to existing lists
+  - Backfills `addedAt` timestamps
+  - Creates predefined lists if missing
+
+- [ ] **Feature Testing** (Ready for browser testing):
+  - Test predefined list creation in browser
+  - Test symbol multi-list indicators
+  - Test star icon (☆ → ★) transitions
+  - Test MultiListSelector modal in popup
+  - Test MultiListSelector modal in floating widget
+  - Test cross-list synchronization
+  - Performance test with multiple lists and symbols
+
+**Deliverables**: ✅ Complete color-based list system with multi-list support, star indicators in both popup and floating widget, checkbox modal for managing symbols across lists, and migration strategy implemented
+
+---
+
+## Remaining Tasks 📝
+
+### High Priority
+1. **Phase 7 Completion**: Color lists and multi-list enhancement (IN PROGRESS)
+2. **WXT Configuration**: Finalize manifest settings and permissions
+3. **Final Testing**: Comprehensive end-to-end testing
+4. **Performance Optimization**: Review and optimize component performance
+
+### Medium Priority
+1. **Error Edge Cases**: Handle network failures and edge cases
+2. **Accessibility**: ARIA labels and keyboard navigation
+3. **Documentation**: Usage instructions and troubleshooting
+
+### Low Priority
+1. **Firefox Compatibility**: Test and fix any Firefox-specific issues
+2. **Additional Features**: Export functionality, bulk operations
+
+---
+
+## Development Commands
+
+```bash
+# Development
+bun dev              # Start development server
+bun dev:firefox      # Firefox development
+
+# Production
+bun build            # Build extension
+bun zip              # Create distribution package
+
+# Type checking
+bun compile          # TypeScript compilation check
+```
+
+## Sample Data Formats
+
+### CSV Format (from screenshot)
+```csv
+Sr.,Stock Name,Symbol
+1,Bharat Gears Limited,BHARATGEAR
+2,Beardsell Limited,BEARDSELL
+3,Zuari Industries Ltd,ZUARIIND
+```
+
+### Text Format
+```
+NSE:INNOVANA, NSE:DYCL, NSE:SHANTIGOLD, BSE:CIANAGRO, BSE:IIL, BSE:TIGERLOGS
+```
+
+### Generated URLs
+```
+https://in.tradingview.com/chart/?symbol=NSE%3AINNOVANA
+https://in.tradingview.com/chart/?symbol=BSE%3ACIANAGRO
+```
+
+---
+
+*This plan tracks systematic development with clear milestones. Currently implementing Phase 7: Color-Based Lists & Multi-List Enhancement.*

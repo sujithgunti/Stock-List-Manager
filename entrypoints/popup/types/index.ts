@@ -9,6 +9,10 @@ export interface StockSymbol {
   fullSymbol: string;
   /** Optional stock name from CSV (e.g., "Bharat Gears Limited") */
   stockName?: string;
+  /** Timestamp when symbol was added to the list */
+  addedAt: Date;
+  /** Optional user notes for this symbol in this specific list */
+  notes?: string;
 }
 
 export interface SymbolList {
@@ -16,6 +20,12 @@ export interface SymbolList {
   id: string;
   /** User-defined name for the list */
   name: string;
+  /** Hex color for list theming (e.g., "#ef4444" for red) */
+  color: string;
+  /** Whether this is a predefined system list */
+  isPredefined: boolean;
+  /** Whether this list is marked as favorite for quick access */
+  isFavoriteList: boolean;
   /** Array of stock symbols in this list */
   symbols: StockSymbol[];
   /** Timestamp when the list was created */
@@ -85,6 +95,12 @@ export interface SymbolListProps {
   onSymbolClick: (symbol: StockSymbol) => void;
   onSymbolDelete: (symbol: StockSymbol) => void;
   isLoading: boolean;
+  // Phase 7: Multi-list support props
+  currentListId?: string;
+  allLists?: SymbolList[];
+  symbolOccurrences?: Record<string, ListReference[]>;
+  onCopySymbol?: (symbol: StockSymbol, toListId: string) => Promise<void>;
+  onRemoveSymbol?: (listId: string, symbol: StockSymbol) => Promise<void>;
 }
 
 export interface ListManagerProps {
@@ -151,3 +167,77 @@ export const STORAGE_KEYS = {
   CURRENT_LIST: 'currentListId',
   SETTINGS: 'settings',
 } as const;
+
+// Cross-list tracking types
+export interface ListReference {
+  /** ID of the list containing the symbol */
+  listId: string;
+  /** Name of the list */
+  listName: string;
+  /** Color of the list */
+  listColor: string;
+}
+
+// Color system types
+export interface ColorOption {
+  /** Display name of the color */
+  name: string;
+  /** Hex color value */
+  hex: string;
+}
+
+// Predefined colored lists (created on first install)
+export const PREDEFINED_LISTS = [
+  {
+    name: "🔴 Red List",
+    color: "#ef4444",
+    isPredefined: true,
+    isFavoriteList: false
+  },
+  {
+    name: "🔵 Blue List",
+    color: "#3b82f6",
+    isPredefined: true,
+    isFavoriteList: false
+  },
+  {
+    name: "🟢 Green List",
+    color: "#10b981",
+    isPredefined: true,
+    isFavoriteList: false
+  },
+  {
+    name: "🟠 Orange List",
+    color: "#f59e0b",
+    isPredefined: true,
+    isFavoriteList: false
+  },
+  {
+    name: "🟣 Purple List",
+    color: "#8b5cf6",
+    isPredefined: true,
+    isFavoriteList: false
+  },
+  {
+    name: "⭐ Favorites",
+    color: "#ffd700",
+    isPredefined: true,
+    isFavoriteList: true
+  }
+] as const;
+
+// Available colors for custom lists
+export const AVAILABLE_COLORS: ColorOption[] = [
+  { name: "Red", hex: "#ef4444" },
+  { name: "Blue", hex: "#3b82f6" },
+  { name: "Green", hex: "#10b981" },
+  { name: "Orange", hex: "#f59e0b" },
+  { name: "Yellow", hex: "#eab308" },
+  { name: "Purple", hex: "#8b5cf6" },
+  { name: "Pink", hex: "#ec4899" },
+  { name: "Cyan", hex: "#06b6d4" },
+  { name: "Lime", hex: "#84cc16" },
+  { name: "Indigo", hex: "#6366f1" },
+  { name: "Teal", hex: "#14b8a6" },
+  { name: "Rose", hex: "#f43f5e" }
+];

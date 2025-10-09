@@ -6,15 +6,41 @@ interface StockSymbol {
   exchange: string;
   fullSymbol: string;
   stockName?: string;
+  addedAt: Date;
+  notes?: string;
 }
 
 interface SymbolList {
   id: string;
   name: string;
+  color: string;
+  isPredefined: boolean;
+  isFavoriteList: boolean;
   symbols: StockSymbol[];
   createdAt: Date;
   updatedAt: Date;
 }
+
+interface ListReference {
+  listId: string;
+  listName: string;
+  listColor: string;
+}
+
+interface ColorOption {
+  name: string;
+  hex: string;
+}
+
+// Predefined colored lists
+const PREDEFINED_LISTS = [
+  { name: "🔴 Red List", color: "#ef4444", isPredefined: true, isFavoriteList: false },
+  { name: "🔵 Blue List", color: "#3b82f6", isPredefined: true, isFavoriteList: false },
+  { name: "🟢 Green List", color: "#10b981", isPredefined: true, isFavoriteList: false },
+  { name: "🟠 Orange List", color: "#f59e0b", isPredefined: true, isFavoriteList: false },
+  { name: "🟣 Purple List", color: "#8b5cf6", isPredefined: true, isFavoriteList: false },
+  { name: "⭐ Favorites", color: "#ffd700", isPredefined: true, isFavoriteList: true }
+] as const;
 
 interface FloatingWidgetProps {
   onClose: () => void;
@@ -77,6 +103,214 @@ const Input = ({ className = '', placeholder, value, onChange, ...props }: any) 
   />
 );
 
+// Dialog Component for Modal
+interface DialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  children: React.ReactNode;
+}
+
+const Dialog = ({ open, onOpenChange, children }: DialogProps) => {
+  useEffect(() => {
+    if (!open) return;
+
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onOpenChange(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, [open, onOpenChange]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="dialog-backdrop"
+      onClick={() => onOpenChange(false)}
+    >
+      <div
+        className="dialog-content-wrapper"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </div>
+    </div>
+  );
+};
+
+interface DialogContentProps {
+  children: React.ReactNode;
+  className?: string;
+}
+
+const DialogContent = ({ children, className = '' }: DialogContentProps) => (
+  <div className={`dialog-content ${className}`}>
+    {children}
+  </div>
+);
+
+const DialogHeader = ({ children, className = '' }: any) => (
+  <div className={`dialog-header ${className}`}>
+    {children}
+  </div>
+);
+
+const DialogTitle = ({ children, className = '' }: any) => (
+  <h3 className={`dialog-title ${className}`}>
+    {children}
+  </h3>
+);
+
+const DialogDescription = ({ children, className = '' }: any) => (
+  <p className={`dialog-description ${className}`}>
+    {children}
+  </p>
+);
+
+// MultiListSelector Component
+interface MultiListSelectorProps {
+  symbol: StockSymbol;
+  currentListId: string;
+  allLists: SymbolList[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onAddToList: (symbol: StockSymbol, toListId: string) => Promise<void>;
+  onRemoveFromList: (listId: string, symbol: StockSymbol) => Promise<void>;
+}
+
+const MultiListSelector = ({
+  symbol,
+  currentListId,
+  allLists,
+  open,
+  onOpenChange,
+  onAddToList,
+  onRemoveFromList
+}: MultiListSelectorProps) => {
+  // Calculate which lists contain this symbol
+  const listPresence = useMemo(() => {
+    const presence: Record<string, boolean> = {};
+    allLists.forEach(list => {
+      presence[list.id] = list.symbols.some(s => s.fullSymbol === symbol.fullSymbol);
+    });
+    return presence;
+  }, [allLists, symbol.fullSymbol]);
+
+  // Group lists by type
+  const favoriteList = useMemo(() => allLists.find(l => l.isFavoriteList), [allLists]);
+  const predefinedLists = useMemo(() => allLists.filter(l => l.isPredefined && !l.isFavoriteList), [allLists]);
+  const customLists = useMemo(() => allLists.filter(l => !l.isPredefined), [allLists]);
+
+  const handleToggleList = async (listId: string, isCurrentlyInList: boolean) => {
+    // Prevent removing from current list
+    if (listId === currentListId && isCurrentlyInList) {
+      return;
+    }
+
+    if (isCurrentlyInList) {
+      await onRemoveFromList(listId, symbol);
+    } else {
+      await onAddToList(symbol, listId);
+    }
+  };
+
+  const renderListCheckbox = (list: SymbolList) => {
+    const isInList = listPresence[list.id];
+    const isCurrentList = list.id === currentListId;
+    const canToggle = !isCurrentList || !isInList;
+
+    return (
+      <div
+        key={list.id}
+        className={`list-checkbox-item ${!canToggle ? 'disabled' : ''}`}
+        onClick={() => canToggle && handleToggleList(list.id, isInList)}
+      >
+        <div className="checkbox-wrapper">
+          <input
+            type="checkbox"
+            checked={isInList}
+            disabled={!canToggle}
+            readOnly
+            className="checkbox-input"
+          />
+        </div>
+        <div className="list-info">
+          <div className="list-name-row">
+            <span className="list-color-dot" style={{ backgroundColor: list.color }}></span>
+            <span className="list-name">{list.name}</span>
+          </div>
+          {isCurrentList && (
+            <span className="current-list-badge">Current List</span>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Manage Symbol Across Lists</DialogTitle>
+          <DialogDescription>
+            Add or remove <strong>{symbol.fullSymbol}</strong> from lists
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="multi-list-selector-body">
+          {/* Favorites */}
+          {favoriteList && (
+            <div className="list-group">
+              <div className="list-group-title">⭐ Favorite List</div>
+              {renderListCheckbox(favoriteList)}
+            </div>
+          )}
+
+          {/* Predefined Lists */}
+          {predefinedLists.length > 0 && (
+            <div className="list-group">
+              <div className="list-group-title">🎨 Predefined Lists</div>
+              <div className="list-group-items">
+                {predefinedLists.map(renderListCheckbox)}
+              </div>
+            </div>
+          )}
+
+          {/* Custom Lists */}
+          {customLists.length > 0 && (
+            <div className="list-group">
+              <div className="list-group-title">📝 Custom Lists</div>
+              <div className="list-group-items">
+                {customLists.map(renderListCheckbox)}
+              </div>
+            </div>
+          )}
+
+          {/* No other lists message */}
+          {allLists.length <= 1 && (
+            <div className="text-center text-muted-foreground text-sm py-4">
+              No other lists available. Create more lists in the popup!
+            </div>
+          )}
+        </div>
+
+        <div className="dialog-footer">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className="w-full"
+          >
+            Close
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 export default function FloatingWidget({ onClose, onMinimize, onStateChange, initialState }: FloatingWidgetProps) {
   const [lists, setLists] = useState<SymbolList[]>([]);
   const [selectedList, setSelectedList] = useState<SymbolList | null>(null);
@@ -84,6 +318,136 @@ export default function FloatingWidget({ onClose, onMinimize, onStateChange, ini
   const [error, setError] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState(initialState?.searchTerm || '');
   const [currentListId, setCurrentListId] = useState<string | null>(null);
+
+  // Multi-list modal state
+  const [selectedSymbol, setSelectedSymbol] = useState<StockSymbol | null>(null);
+  const [isMultiListModalOpen, setIsMultiListModalOpen] = useState(false);
+
+  // Calculate symbol occurrences across lists (for star indicator)
+  const symbolOccurrences = useMemo(() => {
+    if (!selectedList) return {};
+
+    const occurrences: Record<string, ListReference[]> = {};
+
+    selectedList.symbols.forEach((symbol) => {
+      const otherLists: ListReference[] = [];
+
+      lists.forEach((list) => {
+        if (list.id === selectedList.id) return; // Skip current list
+
+        const symbolExists = list.symbols.some(s => s.fullSymbol === symbol.fullSymbol);
+        if (symbolExists) {
+          otherLists.push({
+            listId: list.id,
+            listName: list.name,
+            listColor: list.color
+          });
+        }
+      });
+
+      if (otherLists.length > 0) {
+        occurrences[symbol.fullSymbol] = otherLists;
+      }
+    });
+
+    return occurrences;
+  }, [lists, selectedList]);
+
+  // Multi-list handlers
+  const handleCopySymbol = useCallback(async (symbol: StockSymbol, toListId: string) => {
+    try {
+      // Load current lists from storage
+      const result = await globalThis.chrome.storage.local.get(['symbolLists']);
+      let storedLists: SymbolList[] = [];
+
+      if (result.symbolLists) {
+        if (typeof result.symbolLists === 'string') {
+          storedLists = JSON.parse(result.symbolLists);
+        } else {
+          storedLists = result.symbolLists;
+        }
+      }
+
+      // Find target list and add symbol if not already present
+      const updatedLists = storedLists.map(list => {
+        if (list.id === toListId) {
+          const symbolExists = list.symbols.some(s => s.fullSymbol === symbol.fullSymbol);
+          if (!symbolExists) {
+            return {
+              ...list,
+              symbols: [...list.symbols, symbol],
+              updatedAt: new Date()
+            };
+          }
+        }
+        return list;
+      });
+
+      // Save back to storage
+      const dataToStore = typeof result.symbolLists === 'string'
+        ? JSON.stringify(updatedLists)
+        : updatedLists;
+
+      await globalThis.chrome.storage.local.set({ symbolLists: dataToStore });
+
+      // Reload lists to reflect changes
+      await loadSymbolLists();
+    } catch (err) {
+      console.error('Error copying symbol:', err);
+      setError('Failed to copy symbol');
+    }
+  }, []);
+
+  const handleRemoveFromList = useCallback(async (listId: string, symbol: StockSymbol) => {
+    try {
+      // Load current lists from storage
+      const result = await globalThis.chrome.storage.local.get(['symbolLists']);
+      let storedLists: SymbolList[] = [];
+
+      if (result.symbolLists) {
+        if (typeof result.symbolLists === 'string') {
+          storedLists = JSON.parse(result.symbolLists);
+        } else {
+          storedLists = result.symbolLists;
+        }
+      }
+
+      // Find target list and remove symbol
+      const updatedLists = storedLists.map(list => {
+        if (list.id === listId) {
+          return {
+            ...list,
+            symbols: list.symbols.filter(s => s.fullSymbol !== symbol.fullSymbol),
+            updatedAt: new Date()
+          };
+        }
+        return list;
+      });
+
+      // Save back to storage
+      const dataToStore = typeof result.symbolLists === 'string'
+        ? JSON.stringify(updatedLists)
+        : updatedLists;
+
+      await globalThis.chrome.storage.local.set({ symbolLists: dataToStore });
+
+      // Reload lists to reflect changes
+      await loadSymbolLists();
+    } catch (err) {
+      console.error('Error removing symbol:', err);
+      setError('Failed to remove symbol');
+    }
+  }, []);
+
+  const handleStarClick = useCallback((e: React.MouseEvent, symbol: StockSymbol) => {
+    e.stopPropagation(); // Prevent triggering symbol click
+    setSelectedSymbol(symbol);
+    setIsMultiListModalOpen(true);
+  }, []);
+
+  const isSymbolInOtherLists = useCallback((symbol: StockSymbol) => {
+    return symbolOccurrences[symbol.fullSymbol]?.length > 0;
+  }, [symbolOccurrences]);
 
   // Load symbol lists on component mount
   useEffect(() => {
@@ -412,26 +776,43 @@ export default function FloatingWidget({ onClose, onMinimize, onStateChange, ini
 
                   {/* Symbol list (matching main popup row-based design) */}
                   <div className="space-y-1">
-                    {processedSymbols.map((symbol) => (
-                      <div
-                        key={symbol.fullSymbol}
-                        className="flex items-center justify-between p-2 rounded-md bg-background-muted hover:bg-background-muted/80 transition-colors group"
-                      >
+                    {processedSymbols.map((symbol) => {
+                      const inOtherLists = isSymbolInOtherLists(symbol);
+                      const starIcon = inOtherLists ? '★' : '☆';
+                      const starClass = inOtherLists ? 'text-warning' : 'text-muted-foreground opacity-50';
+
+                      return (
                         <div
-                          className="flex items-center gap-2 min-w-0 flex-1 cursor-pointer"
-                          onClick={() => openSymbol(symbol, true)}
-                          title={`Click to open ${symbol.fullSymbol} in same tab (overlay will restore quickly)`}
+                          key={symbol.fullSymbol}
+                          className="flex items-center justify-between p-2 rounded-md bg-background-muted hover:bg-background-muted/80 transition-colors group"
                         >
-                          <Badge variant={symbol.exchange === 'NSE' ? 'nse' : 'bse'} className="text-xs flex-shrink-0">
-                            {symbol.exchange}
-                          </Badge>
-                          <div className="min-w-0">
-                            <div className="text-sm font-medium text-foreground truncate">{symbol.symbol}</div>
-                            {symbol.stockName && (
-                              <div className="text-xs text-muted-foreground truncate">{symbol.stockName}</div>
-                            )}
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            {/* Star icon for multi-list indicator */}
+                            <button
+                              onClick={(e) => handleStarClick(e, symbol)}
+                              className={`flex-shrink-0 text-lg hover:scale-110 transition-transform ${starClass} star-button`}
+                              title={inOtherLists ? 'In multiple lists - click to manage' : 'Only in this list - click to add to others'}
+                            >
+                              {starIcon}
+                            </button>
+
+                            {/* Symbol info - clickable to open TradingView */}
+                            <div
+                              className="flex items-center gap-2 min-w-0 flex-1 cursor-pointer"
+                              onClick={() => openSymbol(symbol, true)}
+                              title={`Click to open ${symbol.fullSymbol} in same tab (overlay will restore quickly)`}
+                            >
+                              <Badge variant={symbol.exchange === 'NSE' ? 'nse' : 'bse'} className="text-xs flex-shrink-0">
+                                {symbol.exchange}
+                              </Badge>
+                              <div className="min-w-0">
+                                <div className="text-sm font-medium text-foreground truncate">{symbol.symbol}</div>
+                                {symbol.stockName && (
+                                  <div className="text-xs text-muted-foreground truncate">{symbol.stockName}</div>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        </div>
 
                         <div className="flex items-center gap-1 flex-shrink-0">
                           {/* Navigation buttons */}
@@ -439,7 +820,7 @@ export default function FloatingWidget({ onClose, onMinimize, onStateChange, ini
                             variant="ghost"
                             size="sm"
                             className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={(e) => {
+                            onClick={(e: React.MouseEvent) => {
                               e.stopPropagation();
                               openSymbol(symbol, true);
                             }}
@@ -451,7 +832,7 @@ export default function FloatingWidget({ onClose, onMinimize, onStateChange, ini
                             variant="ghost"
                             size="sm"
                             className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={(e) => {
+                            onClick={(e: React.MouseEvent) => {
                               e.stopPropagation();
                               openSymbol(symbol, false);
                             }}
@@ -460,8 +841,9 @@ export default function FloatingWidget({ onClose, onMinimize, onStateChange, ini
                             🔗
                           </Button>
                         </div>
-                      </div>
-                    ))}
+                        </div>
+                      );
+                    })}
                   </div>
 
                   {/* Help text */}
@@ -476,6 +858,19 @@ export default function FloatingWidget({ onClose, onMinimize, onStateChange, ini
           )}
         </div>
       </CardContent>
+
+      {/* Multi-list selector modal */}
+      {selectedList && selectedSymbol && (
+        <MultiListSelector
+          symbol={selectedSymbol}
+          currentListId={selectedList.id}
+          allLists={lists}
+          open={isMultiListModalOpen}
+          onOpenChange={setIsMultiListModalOpen}
+          onAddToList={handleCopySymbol}
+          onRemoveFromList={handleRemoveFromList}
+        />
+      )}
     </Card>
   );
 }

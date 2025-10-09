@@ -39,7 +39,8 @@ export default {
           dark: '#D32F2F',
         },
         warning: {
-          DEFAULT: '#FF9800',
+          DEFAULT: '#ffd700', // Gold for multi-list star indicator
+          orange: '#FF9800',
           dark: '#F57C00',
         },
         border: {

@@ -87,7 +87,9 @@ export function parseCSV(csvContent: string): ParseResult {
           symbol: cleanSymbol,
           exchange: 'NSE', // Default to NSE for CSV imports
           fullSymbol: `NSE:${cleanSymbol}`,
-          stockName: stockNameText || undefined
+          stockName: stockNameText || undefined,
+          addedAt: new Date(),
+          notes: ''
         };
 
         result.symbols.push(stockSymbol);
@@ -221,7 +223,9 @@ function tryExtractSymbolsFromAnyColumn(lines: string[], result: ParseResult): P
               symbol: cleanSymbol,
               exchange: 'NSE',
               fullSymbol: `NSE:${cleanSymbol}`,
-              stockName: undefined
+              stockName: undefined,
+              addedAt: new Date(),
+              notes: ''
             };
 
             result.symbols.push(stockSymbol);
@@ -295,7 +299,9 @@ export function parseTextInput(textContent: string): ParseResult {
           symbol: parsedSymbol.symbol,
           exchange: parsedSymbol.exchange,
           fullSymbol: `${parsedSymbol.exchange}:${parsedSymbol.symbol}`,
-          stockName: parsedSymbol.stockName
+          stockName: parsedSymbol.stockName,
+          addedAt: new Date(),
+          notes: ''
         };
 
         result.symbols.push(stockSymbol);

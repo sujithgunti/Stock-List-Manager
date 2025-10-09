@@ -16,9 +16,18 @@ import {
   deleteListAtom,
   removeSymbolFromListAtom,
   handleParsedSymbolsAtom,
-  autoDisimissSuccessAtom
+  autoDisimissSuccessAtom,
+  favoriteListsAtom,
+  predefinedListsAtom,
+  customListsAtom,
+  symbolOccurrencesAtom,
+  toggleListFavoriteAtom,
+  moveSymbolAtom,
+  copySymbolAtom,
+  initializePredefinedListsAtom,
+  migrateToEnhancedSchemaAtom
 } from './index'
-import { SymbolList, StockSymbol, AppSettings, ParseResult } from '../types/index'
+import { SymbolList, StockSymbol, AppSettings, ParseResult, ListReference } from '../types/index'
 
 // Symbol Lists Management
 export const useSymbolLists = () => {
@@ -144,4 +153,76 @@ export const useSymbolListManager = () => {
     showSuccess,
     clearSuccess
   }
+}
+
+// ============================================================================
+// Phase 7: Color-Based Lists & Multi-List Enhancement Hooks
+// ============================================================================
+
+// List Categorization Hooks
+export const useFavoriteLists = () => {
+  return useAtomValue(favoriteListsAtom)
+}
+
+export const usePredefinedLists = () => {
+  return useAtomValue(predefinedListsAtom)
+}
+
+export const useCustomLists = () => {
+  return useAtomValue(customListsAtom)
+}
+
+// Cross-list Symbol Tracking
+export const useSymbolOccurrences = () => {
+  return useAtomValue(symbolOccurrencesAtom)
+}
+
+// List Actions
+export const useToggleListFavorite = () => {
+  return useSetAtom(toggleListFavoriteAtom)
+}
+
+export const useMoveSymbol = () => {
+  return useSetAtom(moveSymbolAtom)
+}
+
+export const useCopySymbol = () => {
+  return useSetAtom(copySymbolAtom)
+}
+
+// Combined hook for enhanced list management
+export const useEnhancedListManager = () => {
+  const favoriteLists = useFavoriteLists()
+  const predefinedLists = usePredefinedLists()
+  const customLists = useCustomLists()
+  const symbolOccurrences = useSymbolOccurrences()
+  const toggleFavorite = useToggleListFavorite()
+  const moveSymbol = useMoveSymbol()
+  const copySymbol = useCopySymbol()
+
+  return {
+    // Categorized lists
+    favoriteLists,
+    predefinedLists,
+    customLists,
+
+    // Cross-list tracking
+    symbolOccurrences,
+
+    // Actions
+    toggleFavorite,
+    moveSymbol: (symbol: StockSymbol, fromListId: string, toListId: string) =>
+      moveSymbol({ symbol, fromListId, toListId }),
+    copySymbol: (symbol: StockSymbol, toListId: string) =>
+      copySymbol({ symbol, toListId })
+  }
+}
+
+// Initialization & Migration Hooks
+export const useInitializePredefinedLists = () => {
+  return useSetAtom(initializePredefinedListsAtom)
+}
+
+export const useMigrateToEnhancedSchema = () => {
+  return useSetAtom(migrateToEnhancedSchemaAtom)
 }

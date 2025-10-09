@@ -13,7 +13,11 @@ import {
   useSymbolListManager,
   useActiveTab,
   useTextInput,
-  useSuccessMessage
+  useSuccessMessage,
+  useMigrateToEnhancedSchema,
+  useSymbolOccurrences,
+  useCopySymbol,
+  useEnhancedListManager
 } from './atoms/hooks';
 import './App.css';
 
@@ -21,7 +25,8 @@ function App() {
   // Jotai state management
   const [activeTab, setActiveTab] = useActiveTab();
   const [textInput, setTextInput] = useTextInput();
-  const { successMessage, clearSuccess } = useSuccessMessage();
+  const { successMessage, clearSuccess} = useSuccessMessage();
+  const migrateSchema = useMigrateToEnhancedSchema();
 
   const {
     symbolLists,
@@ -36,6 +41,37 @@ function App() {
     handleParsedSymbols,
     clearError
   } = useSymbolListManager();
+
+  // Phase 7: Enhanced list management for multi-list support
+  const symbolOccurrences = useSymbolOccurrences();
+  const copySymbol = useCopySymbol();
+
+  // Wrapper functions for SymbolList component
+  const handleCopySymbol = async (symbol: StockSymbol, toListId: string) => {
+    await copySymbol({ symbol, toListId });
+  };
+
+  const handleRemoveFromList = async (listId: string, symbol: StockSymbol) => {
+    await removeSymbol({ listId, symbolToRemove: symbol });
+  };
+
+  // Phase 7: Migrate to enhanced schema on app load
+  useEffect(() => {
+    const runMigration = async () => {
+      try {
+        const result = await migrateSchema();
+        if (result.migrated) {
+          console.log('✅ Data migrated to enhanced schema with color lists');
+        } else if (result.initialized) {
+          console.log('✅ Initialized predefined colored lists');
+        }
+      } catch (error) {
+        console.error('❌ Migration error:', error);
+      }
+    };
+
+    runMigration();
+  }, [migrateSchema]);
 
   // Auto-dismiss success messages (handled automatically by Jotai atoms)
   useEffect(() => {
@@ -175,6 +211,11 @@ function App() {
                           onSymbolClick={handleSymbolClick}
                           onSymbolDelete={handleSymbolDelete}
                           isLoading={isLoading}
+                          currentListId={currentList.id}
+                          allLists={symbolLists}
+                          symbolOccurrences={symbolOccurrences}
+                          onCopySymbol={handleCopySymbol}
+                          onRemoveSymbol={handleRemoveFromList}
                         />
                       </CardContent>
                     </Card>
@@ -201,6 +242,11 @@ function App() {
                   onSymbolClick={handleSymbolClick}
                   onSymbolDelete={handleSymbolDelete}
                   isLoading={isLoading}
+                  currentListId={currentList.id}
+                  allLists={symbolLists}
+                  symbolOccurrences={symbolOccurrences}
+                  onCopySymbol={handleCopySymbol}
+                  onRemoveSymbol={handleRemoveFromList}
                 />
               </div>
             </div>

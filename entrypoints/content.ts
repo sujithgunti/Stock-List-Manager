@@ -344,7 +344,8 @@ export default defineContentScript({
 
           --success: #4CAF50;
           --error: #F44336;
-          --warning: #FF9800;
+          --warning: #ffd700;
+          --warning-orange: #FF9800;
 
           --border: #363A45;
           --border-light: #434651;
@@ -420,8 +421,24 @@ export default defineContentScript({
         .text-muted-foreground { color: var(--foreground-muted); }
         .text-destructive { color: var(--error); }
         .text-error { color: var(--error); }
+        .text-warning { color: var(--warning); }
         .border { border: 1px solid var(--border); }
         .border-muted { border-color: var(--background-muted); }
+
+        /* Star button styles */
+        .star-button {
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          padding: 0;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .star-button:hover {
+          transform: scale(1.1);
+        }
 
         /* Border and shadow */
         .rounded-md { border-radius: 0.375rem; }
@@ -577,6 +594,200 @@ export default defineContentScript({
         /* Group hover effects */
         .group:hover .group-hover\\:opacity-100 {
           opacity: 1;
+        }
+
+        /* Dialog styles */
+        .dialog-backdrop {
+          position: fixed;
+          inset: 0;
+          z-index: 50;
+          background: rgba(0, 0, 0, 0.8);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          animation: fade-in 0.2s ease-out;
+        }
+
+        .dialog-content-wrapper {
+          animation: slide-in 0.3s ease-out;
+        }
+
+        .dialog-content {
+          position: relative;
+          background: var(--background-card);
+          border: 1px solid var(--border);
+          border-radius: 0.5rem;
+          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+          max-width: 28rem;
+          width: 90%;
+          max-height: 80vh;
+          overflow: hidden;
+          margin: 1rem;
+        }
+
+        .dialog-header {
+          padding: 1rem 1.5rem;
+          border-bottom: 1px solid var(--border);
+        }
+
+        .dialog-title {
+          font-size: 1.125rem;
+          font-weight: 600;
+          color: var(--foreground);
+          margin: 0;
+        }
+
+        .dialog-description {
+          font-size: 0.875rem;
+          color: var(--foreground-muted);
+          margin-top: 0.25rem;
+        }
+
+        .dialog-description strong {
+          color: var(--foreground);
+          font-weight: 500;
+        }
+
+        .dialog-footer {
+          padding: 1rem 1.5rem;
+          border-top: 1px solid var(--border);
+        }
+
+        .w-full {
+          width: 100%;
+        }
+
+        /* MultiListSelector styles */
+        .multi-list-selector-body {
+          padding: 1rem 1.5rem;
+          max-height: 50vh;
+          overflow-y: auto;
+        }
+
+        .list-group {
+          margin-bottom: 1rem;
+        }
+
+        .list-group:last-child {
+          margin-bottom: 0;
+        }
+
+        .list-group-title {
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: var(--foreground-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          margin-bottom: 0.5rem;
+        }
+
+        .list-group-items {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+        }
+
+        .list-checkbox-item {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 0.75rem;
+          border-radius: 0.375rem;
+          background: var(--background-muted);
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+
+        .list-checkbox-item:hover:not(.disabled) {
+          background: var(--background);
+        }
+
+        .list-checkbox-item.disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        .checkbox-wrapper {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .checkbox-input {
+          width: 1rem;
+          height: 1rem;
+          cursor: pointer;
+          accent-color: var(--primary-500);
+        }
+
+        .checkbox-input:disabled {
+          cursor: not-allowed;
+        }
+
+        .list-info {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .list-name-row {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+
+        .list-color-dot {
+          width: 0.75rem;
+          height: 0.75rem;
+          border-radius: 9999px;
+          flex-shrink: 0;
+        }
+
+        .list-name {
+          font-size: 0.875rem;
+          color: var(--foreground);
+          font-weight: 500;
+        }
+
+        .current-list-badge {
+          display: inline-block;
+          font-size: 0.625rem;
+          color: var(--primary-500);
+          background: rgba(41, 98, 255, 0.1);
+          padding: 0.125rem 0.375rem;
+          border-radius: 0.25rem;
+          margin-top: 0.25rem;
+        }
+
+        /* Animations */
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+
+        @keyframes slide-in {
+          from {
+            opacity: 0;
+            transform: translateY(-10px) scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        /* Utility animations */
+        .transition-transform {
+          transition-property: transform;
+          transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+          transition-duration: 150ms;
+        }
+
+        .hover\\:scale-110:hover {
+          transform: scale(1.1);
         }
 
         /* Custom Dark Theme Scrollbar */
