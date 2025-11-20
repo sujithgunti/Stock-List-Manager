@@ -90,6 +90,14 @@ export interface TextInputProps {
   error?: string;
 }
 
+export interface WebsiteExtractorProps {
+  onParsedSymbols: (result: ParseResult, listName: string) => void;
+  isLoading: boolean;
+  error?: string;
+  lists: SymbolList[];
+  currentList: SymbolList | null;
+}
+
 export interface SymbolListProps {
   symbols: StockSymbol[];
   onSymbolClick: (symbol: StockSymbol) => void;

@@ -706,6 +706,137 @@ https://in.tradingview.com/chart/?symbol=BSE%3ACIANAGRO
 
 ---
 
+## Phase 8: Website Symbol Extraction 🌐 ⏳ IN PROGRESS
+*Duration: 4-6 hours*
+
+### 8.1 Scraper Infrastructure ✅ COMPLETED
+- [x] ✅ **Scraper Type Definitions** (`entrypoints/popup/scrapers/types.ts`):
+  - `SupportedSite` enum (Screener, ChartInk, TradingEdge)
+  - `SiteDetection` interface for site identification
+  - `ScraperResult` interface for scraping results
+  - `ScrapeWebsiteMessage` types for messaging
+  - `SiteScraper` base interface for all scrapers
+
+- [x] ✅ **Screener.in Scraper** (`entrypoints/popup/scrapers/screener.ts`):
+  - `detectScreener()` - Check if URL is Screener.in
+  - `getSiteInfo()` - Return site instructions and metadata
+  - `scrapeFunction` - Content script code to extract symbols
+  - `processData()` - Convert numeric tokens via Screener API
+  - Output format: `"NSE:SYMBOL, BSE:SYMBOL, ..."` (ready for parseTextInput)
+
+### 8.2 Background Script Enhancement ✅ COMPLETED
+- [x] ✅ **Message Handler** (`entrypoints/background.ts`):
+  - Add `SCRAPE_WEBSITE` message handler
+  - Execute content script scraping via `chrome.scripting.executeScript`
+  - Handle numeric token conversion API calls
+  - Return formatted symbol string to popup
+  - Error handling for failed scraping attempts
+
+### 8.3 WebsiteExtractor Component ✅ COMPLETED
+- [x] ✅ **Main Component** (`entrypoints/popup/components/WebsiteExtractor.tsx`):
+  - Auto-detect current website (Screener, ChartInk, TradingEdge)
+  - Show site-specific instructions and icon
+  - "Extract Symbols" button with loading state
+  - Preview extracted symbols in scrollable list
+  - List selector dropdown (reuse existing list state)
+  - "Add X symbols to [List]" confirmation button
+  - Error display for unsupported sites or failed extractions
+  - Empty state for when not on supported site
+  - Raw symbol string display with copy to clipboard
+  - Success message display
+
+### 8.4 UI Integration ✅ COMPLETED
+- [x] ✅ **App.tsx Updates**:
+  - Change TabsList from `grid-cols-3` to `grid-cols-4`
+  - Add 4th TabsTrigger: `🌐 Web` (shortened for space)
+  - Add TabsContent with WebsiteExtractor component
+  - Pass existing handlers: `handleParsedSymbols`, `symbolLists`, `currentList`
+  - Maintain existing error/success message display
+
+- [x] ✅ **Type Updates** (`entrypoints/popup/types/index.ts`):
+  - Add `WebsiteExtractorProps` interface
+  - Export new types for component usage
+
+### 8.5 Feature Workflow
+```
+User Navigation:
+1. User navigates to Screener.in search results page
+2. Opens extension popup
+3. Clicks "🌐 Website" tab
+4. Extension auto-detects Screener.in
+5. Shows site-specific instructions
+
+Extraction Flow:
+1. User clicks "Extract Symbols" button
+2. Popup → Background: SCRAPE_WEBSITE message
+3. Background → Content Script: Inject scraper code
+4. Content Script: Extract symbols from page
+5. Background: Convert numeric tokens via API
+6. Background → Popup: Return "NSE:SYM1, BSE:SYM2, ..."
+7. Popup: parseTextInput() → StockSymbol[] array
+8. Show preview with symbol count
+9. User selects target list from dropdown
+10. User clicks "Add X symbols to [List]"
+11. Use existing handleParsedSymbols() logic
+12. Show success message
+```
+
+### 8.6 Screener.in Implementation Details
+- [ ] **Content Script Scraping**:
+  ```javascript
+  // Extract company links
+  const anchors = document.querySelectorAll('a[href^="/company/"]');
+  const symbols = Array.from(anchors)
+    .map(a => a.getAttribute("href")?.split("/")[2])
+    .filter(Boolean);
+
+  // Return as NSE:SYMBOL format
+  return symbols.map(s => `NSE:${s}`).join(", ");
+  ```
+
+- [ ] **Numeric Token Conversion**:
+  ```javascript
+  // API endpoint for token conversion
+  fetch(`https://d3odwfz2snlzhh.cloudfront.net/default/screener-exchange-token-to-symbol?exchange_tokens=${tokens}`)
+
+  // Response: [{ tradingsymbol: "SYMBOL", exchange: "NSE" }]
+  ```
+
+### 8.7 Future Site Support (Phase 8.2+)
+- [ ] **ChartInk Scraper** (Future):
+  - Detect ChartInk.com URLs
+  - Extract symbols from scan results
+  - Handle ChartInk-specific format
+
+- [ ] **TradingEdge Scraper** (Future):
+  - Detect TradingEdge URLs
+  - Extract symbols from screener results
+  - Handle TradingEdge-specific format
+
+### 8.8 Testing Requirements ⏳ READY FOR TESTING
+- [ ] **Browser Testing**:
+  - Test on real Screener.in search results page
+  - Verify symbol extraction accuracy
+  - Test numeric token conversion
+  - Test preview and list selection
+  - Verify duplicate handling
+  - Test error cases (network failures, unsupported pages)
+  - Test "Re-detect Website" functionality
+  - Test clipboard copy feature
+
+**Key Benefits**:
+- ✅ **Reuses Existing Parser**: `parseTextInput()` handles the format
+- ✅ **Single-Page Extraction**: Safe, no auto-navigation
+- ✅ **Preview Before Adding**: User reviews symbols first
+- ✅ **Duplicate Handling**: Existing Jotai logic handles conflicts
+- ✅ **Extensible**: Easy to add ChartInk/TradingEdge later
+- ✅ **Consistent UX**: Same flow as CSV/Text input
+- ✅ **No Compilation Errors**: All TypeScript checks pass
+
+**Deliverables**: ✅ Complete website extraction feature with Screener.in support, preview UI, and seamless integration with existing list management system - READY FOR BROWSER TESTING
+
+---
+
 ## Remaining Tasks 📝
 
 ### High Priority

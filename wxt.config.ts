@@ -10,7 +10,18 @@ export default defineConfig({
     action: {
       default_title: 'TradingView Symbol Manager'
     },
-    permissions: ['storage'],
-    host_permissions: ['*://*.tradingview.com/*', '*://in.tradingview.com/*']
+    // Permissions:
+    // - storage: For saving symbol lists
+    // - scripting: For chrome.scripting.executeScript (website extraction)
+    // - activeTab: Grants access to current tab when user clicks extension (privacy-friendly)
+    permissions: ['storage', 'scripting', 'activeTab'],
+    // Host permissions:
+    // - TradingView: For auto-injecting floating widget
+    // - Screener.in: Required for background tab creation and script injection during symbol extraction
+    host_permissions: [
+      '*://*.tradingview.com/*',
+      '*://in.tradingview.com/*',
+      '*://*.screener.in/*'  // Required for background tab access!
+    ]
   }
 });

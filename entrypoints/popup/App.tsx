@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { FileUpload } from './components/FileUpload';
 import { TextInput } from './components/TextInput';
+import { WebsiteExtractor } from './components/WebsiteExtractor';
 import { SymbolList } from './components/SymbolList';
 import { ListManager } from './components/ListManager';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
@@ -153,9 +154,10 @@ function App() {
       <div className="flex-1 overflow-hidden">
         <Tabs defaultValue="upload" className="h-full flex flex-col">
           <div className="flex-shrink-0 px-4 pt-3">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="upload" className="text-xs">📊 CSV Upload</TabsTrigger>
-              <TabsTrigger value="text" className="text-xs">📝 Text Input</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="upload" className="text-xs">📊 CSV</TabsTrigger>
+              <TabsTrigger value="text" className="text-xs">📝 Text</TabsTrigger>
+              <TabsTrigger value="website" className="text-xs">🌐 Web</TabsTrigger>
               <TabsTrigger value="lists" className="text-xs">📋 Lists</TabsTrigger>
             </TabsList>
           </div>
@@ -180,6 +182,18 @@ function App() {
                   onParsedSymbols={handleParsedSymbols}
                   isLoading={isLoading}
                   error={error}
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="website" className="h-full p-0 m-0">
+              <div className="h-full overflow-y-auto p-4 pt-3">
+                <WebsiteExtractor
+                  onParsedSymbols={handleParsedSymbols}
+                  isLoading={isLoading}
+                  error={error}
+                  lists={symbolLists}
+                  currentList={currentList}
                 />
               </div>
             </TabsContent>
