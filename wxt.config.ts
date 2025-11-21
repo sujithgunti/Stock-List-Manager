@@ -18,10 +18,12 @@ export default defineConfig({
     // Host permissions:
     // - TradingView: For auto-injecting floating widget
     // - Screener.in: Required for background tab creation and script injection during symbol extraction
+    // - ChartInk.com: For ChartInk screener extraction
     host_permissions: [
       '*://*.tradingview.com/*',
       '*://in.tradingview.com/*',
-      '*://*.screener.in/*'  // Required for background tab access!
+      '*://*.screener.in/*',  // Required for background tab access!
+      '*://*.chartink.com/*'  // ChartInk screener extraction
     ]
   }
 });

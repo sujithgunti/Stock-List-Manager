@@ -130,7 +130,38 @@ export function detectSite(url: string): SiteDetection {
     return screenerScraper.getSiteInfo();
   }
 
-  // Future: Add ChartInk, TradingEdge detection here
+  // ChartInk detection
+  try {
+    const urlObj = new URL(url);
+    if (urlObj.hostname.includes('chartink.com') && url.includes('/screener/')) {
+      return {
+        site: SupportedSite.CHARTINK,
+        isSupported: true,
+        displayName: 'ChartInk.com',
+        instructions: `📈 **ChartInk.com Detected**
+
+**How to use:**
+1. Navigate to a ChartInk screener results page
+2. Make sure the scan has completed and results are visible
+3. Click "Extract Symbols" below
+4. Review the extracted symbols with metadata
+5. Select a list to add them to
+6. Click "Add to List"
+
+**Features:**
+- ✅ Extracts stock symbols with exchange info (NSE/BSE)
+- ✅ Includes metadata (price, volume, change%, etc.)
+- ✅ Supports pagination for multi-page results
+- ✅ Deduplicates symbols across all pages
+
+**Note:** Extraction may take a few seconds for multi-page results`
+      };
+    }
+  } catch {
+    // Invalid URL, continue to unknown
+  }
+
+  // Future: Add TradingEdge detection here
 
   return {
     site: SupportedSite.UNKNOWN,
@@ -140,9 +171,9 @@ export function detectSite(url: string): SiteDetection {
 
 This feature currently supports:
 - 📊 Screener.in (search results and screens)
+- 📈 ChartInk.com (screener results)
 
 **Coming soon:**
-- 📈 ChartInk.com
 - 📉 TradingEdge
 
 **How to use:**

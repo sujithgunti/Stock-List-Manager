@@ -6,6 +6,7 @@ let scrapingInProgress = false;
 let baseUrl = '';
 let activeTabId: number | null = null;
 let scrapeCallback: ((response: any) => void) | null = null;
+let currentSiteType: 'screener' | 'chartink' | null = null;
 
 export default defineBackground(() => {
   console.log('TradingView Symbol Manager Background Script loaded', { id: browser.runtime.id });
@@ -95,17 +96,27 @@ export default defineBackground(() => {
         return;
       }
 
-      // Import scraper dynamically
+      // Import scrapers dynamically
       const { screenerScraper } = await import('./popup/scrapers/screener.js');
+      const { chartinkScraper } = await import('./popup/scrapers/chartink.js');
 
-      // Detect if this is a supported site
-      if (!screenerScraper.detect(tab.url)) {
+      // Detect which site we're on
+      const isScreener = screenerScraper.detect(tab.url);
+      const isChartink = chartinkScraper.detect(tab.url);
+
+      if (!isScreener && !isChartink) {
         sendResponse({
           success: false,
-          error: 'Unsupported website. Please navigate to Screener.in'
+          error: 'Unsupported website. Please navigate to Screener.in or ChartInk.com'
         });
         return;
       }
+
+      // Select the appropriate scraper
+      const activeScraper = isScreener ? screenerScraper : chartinkScraper;
+      currentSiteType = isScreener ? 'screener' : 'chartink';
+
+      console.log(`Detected site type: ${currentSiteType}`);
 
       // Initialize scraping state
       scrapingInProgress = true;
@@ -118,10 +129,12 @@ export default defineBackground(() => {
       const url = new URL(tab.url);
       baseUrl = url.href.replace(/\/$/, '').split('?page=')[0];
 
-      // Get total pages from current page
+      // Get total pages from current page - use site-specific function
+      const getTotalPagesFunc = currentSiteType === 'screener' ? getTotalPages : getChartinkTotalPages;
+
       const results = await globalThis.chrome.scripting.executeScript({
         target: { tabId },
-        func: getTotalPages
+        func: getTotalPagesFunc
       });
 
       if (results && results[0] && results[0].result) {
@@ -174,64 +187,87 @@ export default defineBackground(() => {
         });
       }
 
-      // Scrape symbols from current page
+      // Scrape symbols from current page - use site-specific function
+      const scrapeFuncToUse = currentSiteType === 'screener' ? scrapeSymbols : scrapeChartinkSymbols;
+
       const results = await globalThis.chrome.scripting.executeScript({
         target: { tabId },
-        func: scrapeSymbols
+        func: scrapeFuncToUse
       });
 
       if (results && results[0] && results[0].result) {
-        const rawSymbols: string[] = results[0].result;
-        console.log(`🔍 Found ${rawSymbols.length} symbols on page:`, rawSymbols);
+        // Handle different return formats for each site
+        if (currentSiteType === 'screener') {
+          // Screener.in returns string[] of symbols
+          const rawSymbols: string[] = results[0].result;
+          console.log(`🔍 Found ${rawSymbols.length} symbols on page:`, rawSymbols);
 
-        // Process each symbol immediately: convert numeric ones, keep alphanumeric ones
-        for (let i = 0; i < rawSymbols.length; i++) {
-          const symbol = rawSymbols[i];
+          // Process each symbol immediately: convert numeric ones, keep alphanumeric ones
+          for (let i = 0; i < rawSymbols.length; i++) {
+            const symbol = rawSymbols[i];
 
-          console.log(`\n[${i + 1}/${rawSymbols.length}] Processing: ${symbol}`);
+            console.log(`\n[${i + 1}/${rawSymbols.length}] Processing: ${symbol}`);
 
-          if (/^\d+$/.test(symbol)) {
-            // Numeric symbol - needs conversion
-            console.log(`  ⚙️  Type: NUMERIC - needs conversion`);
+            if (/^\d+$/.test(symbol)) {
+              // Numeric symbol - needs conversion
+              console.log(`  ⚙️  Type: NUMERIC - needs conversion`);
 
-            await globalThis.chrome.scripting.executeScript({
-              target: { tabId },
-              func: insertMessagePopup,
-              args: [`Converting ${symbol}... (${i + 1}/${rawSymbols.length})`, 'blue']
-            });
-
-            const converted = await convertNumericSymbol(symbol, tabId);
-
-            if (converted) {
-              allSymbols.push(`${converted.exchange}:${converted.symbol}`);
-              console.log(`  ✅ Converted ${symbol} → ${converted.exchange}:${converted.symbol}`);
-
-              // Show success message
               await globalThis.chrome.scripting.executeScript({
                 target: { tabId },
                 func: insertMessagePopup,
-                args: [`✅ ${symbol} → ${converted.symbol}`, 'green']
+                args: [`Converting ${symbol}... (${i + 1}/${rawSymbols.length})`, 'blue']
               });
+
+              const converted = await convertNumericSymbol(symbol, tabId);
+
+              if (converted) {
+                allSymbols.push(`${converted.exchange}:${converted.symbol}`);
+                console.log(`  ✅ Converted ${symbol} → ${converted.exchange}:${converted.symbol}`);
+
+                // Show success message
+                await globalThis.chrome.scripting.executeScript({
+                  target: { tabId },
+                  func: insertMessagePopup,
+                  args: [`✅ ${symbol} → ${converted.symbol}`, 'green']
+                });
+              } else {
+                // BSE link not found - mark clearly as UNKNOWN
+                console.error(`  ❌ Failed to extract BSE symbol for numeric ID: ${symbol}`);
+                allSymbols.push(`UNKNOWN:${symbol}`);
+
+                // Show error message
+                await globalThis.chrome.scripting.executeScript({
+                  target: { tabId },
+                  func: insertMessagePopup,
+                  args: [`❌ No BSE link for ${symbol}`, 'red']
+                });
+              }
+
+              // NO NEED to navigate back - we used a background tab!
+              // User stayed on the list page the entire time ✨
+
             } else {
-              // BSE link not found - mark clearly as UNKNOWN
-              console.error(`  ❌ Failed to extract BSE symbol for numeric ID: ${symbol}`);
-              allSymbols.push(`UNKNOWN:${symbol}`);
-
-              // Show error message
-              await globalThis.chrome.scripting.executeScript({
-                target: { tabId },
-                func: insertMessagePopup,
-                args: [`❌ No BSE link for ${symbol}`, 'red']
-              });
+              // Alphanumeric symbol - use as-is with NSE
+              console.log(`  ⚙️  Type: ALPHANUMERIC - using as NSE:${symbol}`);
+              allSymbols.push(`NSE:${symbol}`);
             }
+          }
+        } else if (currentSiteType === 'chartink') {
+          // ChartInk returns { success: boolean, symbols: Array<{ symbol, exchange, metadata }> }
+          const chartinkData = results[0].result;
 
-            // NO NEED to navigate back - we used a background tab!
-            // User stayed on the list page the entire time ✨
+          if (!chartinkData.success) {
+            throw new Error(chartinkData.error || 'Failed to scrape ChartInk symbols');
+          }
 
-          } else {
-            // Alphanumeric symbol - use as-is with NSE
-            console.log(`  ⚙️  Type: ALPHANUMERIC - using as NSE:${symbol}`);
-            allSymbols.push(`NSE:${symbol}`);
+          const stocks = chartinkData.symbols;
+          console.log(`🔍 Found ${stocks.length} symbols on page:`, stocks.map((s: any) => s.symbol));
+
+          // Process ChartInk symbols - they're already formatted
+          for (const stock of stocks) {
+            const formattedSymbol = `${stock.exchange}:${stock.symbol}`;
+            allSymbols.push(formattedSymbol);
+            console.log(`  ✅ Added: ${formattedSymbol}`);
           }
         }
 
@@ -241,12 +277,67 @@ export default defineBackground(() => {
       // Check if more pages to scrape
       if (currentPage < totalPages) {
         currentPage++;
-        // Navigate to next page
-        setTimeout(() => {
-          globalThis.chrome.tabs.update(tabId, {
-            url: `${baseUrl}?page=${currentPage}&limit=50`
+
+        if (currentSiteType === 'chartink') {
+          // ChartInk uses click-based pagination, not URL-based
+          console.log(`🖱️ Clicking to navigate to page ${currentPage}...`);
+
+          // Click the specific page number button on ChartInk
+          const targetPage = currentPage;
+          const clickResult = await globalThis.chrome.scripting.executeScript({
+            target: { tabId },
+            func: (pageNum: number) => {
+              // Strategy 1: Click the specific page number button
+              const buttons = document.querySelectorAll('button');
+              for (const btn of buttons) {
+                const text = btn.textContent?.trim();
+                // Check if button text is exactly the page number
+                if (text === String(pageNum)) {
+                  console.log(`[ChartInk] Found page ${pageNum} button, clicking...`);
+                  (btn as HTMLElement).click();
+                  return { success: true, method: 'page-number' };
+                }
+              }
+
+              // Strategy 2: Click "Next" button (contains fa-angles-right icon or "Next" text)
+              for (const btn of buttons) {
+                const hasNextIcon = btn.querySelector('.fa-angles-right');
+                const hasNextText = btn.textContent?.includes('Next');
+                if (hasNextIcon || hasNextText) {
+                  console.log('[ChartInk] Found Next button, clicking...');
+                  (btn as HTMLElement).click();
+                  return { success: true, method: 'next-button' };
+                }
+              }
+
+              console.warn('[ChartInk] No pagination button found');
+              return { success: false, method: 'none' };
+            },
+            args: [targetPage]
           });
-        }, 800); // 800ms delay to avoid rate limiting
+
+          const result = clickResult?.[0]?.result;
+          if (result?.success) {
+            console.log(`✅ Clicked ${result.method} to go to page ${currentPage}`);
+
+            // Wait for table to update after click
+            console.log(`⏳ Waiting for page ${currentPage} data to load...`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
+            // Continue scraping
+            navigateAndScrape(tabId);
+          } else {
+            console.error('Failed to find pagination button on ChartInk');
+            await finalizeScraping(tabId);
+          }
+        } else {
+          // Screener.in uses URL-based pagination
+          setTimeout(() => {
+            globalThis.chrome.tabs.update(tabId, {
+              url: `${baseUrl}?page=${currentPage}&limit=50`
+            });
+          }, 800);
+        }
       } else {
         // All pages scraped - process results
         await finalizeScraping(tabId);
@@ -362,7 +453,7 @@ export default defineBackground(() => {
             metadata: {
               sourceUrl: baseUrl,
               scrapedAt: new Date(),
-              site: 'screener',
+              site: currentSiteType || 'unknown',
               totalPages: totalPages
             }
           }
@@ -393,6 +484,7 @@ export default defineBackground(() => {
     baseUrl = '';
     activeTabId = null;
     scrapeCallback = null;
+    currentSiteType = null;
   }
 });
 
@@ -512,5 +604,186 @@ function extractExchangeLinks(): { symbol: string; exchange: string } | null {
   // No BSE link found - return null (don't fallback to anything else)
   console.warn('[extractExchangeLinks] ❌ No BSE link found on this page');
   return null;
+}
+
+// ======================
+// CHARTINK FUNCTIONS
+// ======================
+
+// Function to scrape symbols from ChartInk screener (injected into page)
+function scrapeChartinkSymbols() {
+  console.log('[scrapeChartinkSymbols] Starting ChartInk extraction...');
+
+  const results: Array<{
+    symbol: string;
+    exchange: string;
+    metadata?: any;
+  }> = [];
+
+  // ChartInk uses a generic table structure with data-column attributes
+  // Table structure: <table><tbody><tr><td data-column="2">Symbol</td></tr></tbody></table>
+  const rows = document.querySelectorAll('table tbody tr');
+
+  if (rows.length === 0) {
+    console.warn('[scrapeChartinkSymbols] No table rows found');
+    return { success: false, error: 'No stock data found on this ChartInk page.' };
+  }
+
+  console.log(`[scrapeChartinkSymbols] Found ${rows.length} rows`);
+
+  rows.forEach((row, index) => {
+    try {
+      // Get all td elements in the row
+      const allTds = row.querySelectorAll('td');
+
+      // ChartInk table structure (0-indexed):
+      // 0: Sr. (serial number)
+      // 1: Stock Name
+      // 2: Symbol ← THIS IS WHAT WE NEED
+      // 3: Links (P&F | F.A)
+      // 4: % Change
+      // 5: Price
+      // 6: Volume
+
+      if (allTds.length < 3) {
+        console.warn(`[scrapeChartinkSymbols] Row ${index + 1}: Not enough columns (${allTds.length})`);
+        return;
+      }
+
+      // Symbol is in the 3rd column (index 2)
+      const symbolCell = allTds[2];
+      const symbolElement = symbolCell.querySelector('a');
+
+      if (symbolElement) {
+        const symbol = symbolElement.textContent?.trim().toUpperCase();
+
+        if (symbol && symbol.length > 0) {
+          // Extract metadata from other columns
+          const stockNameElement = allTds[1]?.querySelector('a');
+          const changeElement = allTds[4];
+          const priceElement = allTds[5];
+          const volumeElement = allTds[6];
+
+          // ChartInk uses NSE symbols by default
+          results.push({
+            symbol: symbol,
+            exchange: 'NSE',
+            metadata: {
+              stockName: stockNameElement?.textContent?.trim() || '',
+              price: priceElement?.textContent?.trim() || '',
+              change: changeElement?.textContent?.trim() || '',
+              volume: volumeElement?.textContent?.trim() || ''
+            }
+          });
+
+          console.log(`[scrapeChartinkSymbols] Row ${index + 1}: ${symbol}`);
+        } else {
+          console.warn(`[scrapeChartinkSymbols] Row ${index + 1}: Empty symbol text`);
+        }
+      } else {
+        console.warn(`[scrapeChartinkSymbols] Row ${index + 1}: No <a> tag found in symbol cell`);
+      }
+    } catch (error) {
+      console.error(`[scrapeChartinkSymbols] Error processing row ${index}:`, error);
+    }
+  });
+
+  console.log(`[scrapeChartinkSymbols] Successfully extracted ${results.length} symbols`);
+
+  return {
+    success: true,
+    symbols: results
+  };
+}
+
+// Function to get total pages from ChartInk (injected into page)
+function getChartinkTotalPages() {
+  console.log('[getChartinkTotalPages] Detecting pagination...');
+
+  // ChartInk shows pagination as numbered buttons
+  // The pagination has buttons like: « 1 2 3 ... 18 »
+  // Also shows "Page # X" dropdown and "349 stocks" text
+
+  let maxPage = 1;
+
+  // Pattern 1: Calculate from "X stocks" text
+  // Look for text like "349 stocks" and calculate pages (20 per page)
+  const bodyText = document.body.textContent || '';
+  const stocksMatch = bodyText.match(/(\d+)\s+stocks?/i);
+  if (stocksMatch) {
+    const totalStocks = parseInt(stocksMatch[1], 10);
+    const stocksPerPage = 20; // ChartInk shows 20 stocks per page
+    const calculatedPages = Math.ceil(totalStocks / stocksPerPage);
+    console.log(`[getChartinkTotalPages] Found "${stocksMatch[0]}" - calculating ${calculatedPages} pages (${totalStocks} stocks / ${stocksPerPage} per page)`);
+    if (calculatedPages > 1) {
+      console.log(`[getChartinkTotalPages] ✅ Calculated ${calculatedPages} pages from stock count`);
+      return calculatedPages;
+    }
+  }
+
+  // Pattern 2: Look for page number buttons/links
+  // Scan all button and link elements for numbers
+  const allElements = document.querySelectorAll('button, a');
+  console.log(`[getChartinkTotalPages] Scanning ${allElements.length} buttons/links for page numbers...`);
+
+  allElements.forEach(element => {
+    const text = element.textContent?.trim();
+    // Check if it's a pure number (page number)
+    if (text && /^\d+$/.test(text)) {
+      const pageNum = parseInt(text, 10);
+      if (pageNum > maxPage && pageNum < 100) { // Sanity check: page numbers should be reasonable
+        maxPage = pageNum;
+        console.log(`[getChartinkTotalPages] Found page button: ${pageNum}`);
+      }
+    }
+  });
+
+  if (maxPage > 1) {
+    console.log(`[getChartinkTotalPages] ✅ Found ${maxPage} pages from pagination buttons`);
+    return maxPage;
+  }
+
+  // Pattern 3: Check for "Page # X" dropdown
+  const pageDropdown = document.querySelector('select');
+  if (pageDropdown) {
+    console.log('[getChartinkTotalPages] Found page dropdown, checking options...');
+    const options = pageDropdown.querySelectorAll('option');
+    options.forEach(option => {
+      const text = option.textContent?.trim();
+      const value = option.value;
+
+      // Check both text content and value
+      const numText = text && /^\d+$/.test(text) ? parseInt(text, 10) : null;
+      const numValue = value && /^\d+$/.test(value) ? parseInt(value, 10) : null;
+
+      const pageNum = numText || numValue;
+      if (pageNum && pageNum > maxPage && pageNum < 100) {
+        maxPage = pageNum;
+        console.log(`[getChartinkTotalPages] Found dropdown option: ${pageNum}`);
+      }
+    });
+
+    if (maxPage > 1) {
+      console.log(`[getChartinkTotalPages] ✅ Found ${maxPage} pages from dropdown`);
+      return maxPage;
+    }
+  }
+
+  // Pattern 4: Check for "Next" or "»" button (fallback)
+  let hasNextButton = false;
+  allElements.forEach(element => {
+    const text = element.textContent?.trim();
+    if (text === '»' || text === 'Next' || text === '›' || text === '→') {
+      hasNextButton = true;
+    }
+  });
+
+  if (hasNextButton) {
+    console.log('[getChartinkTotalPages] ⚠️ Found Next button but no page numbers, defaulting to 1 page');
+  } else {
+    console.log('[getChartinkTotalPages] No pagination detected, assuming single page');
+  }
+
+  return 1;
 }
 
