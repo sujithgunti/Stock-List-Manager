@@ -6,6 +6,7 @@ import { WebsiteExtractorProps, StockSymbol } from '../types/index';
 import { parseTextInput } from '../utils/parser';
 import { detectSite } from '../scrapers/screener';
 import { SiteDetection, SupportedSite } from '../scrapers/types';
+import { TrendingUp, Globe, Search, RefreshCw, XCircle, CheckCircle2, Plus, Code, Copy } from 'lucide-react';
 
 export function WebsiteExtractor({
   onParsedSymbols,
@@ -148,13 +149,11 @@ export function WebsiteExtractor({
   const getSiteIcon = (site: SupportedSite) => {
     switch (site) {
       case SupportedSite.SCREENER:
-        return '📊';
       case SupportedSite.CHARTINK:
-        return '📈';
       case SupportedSite.TRADINGEDGE:
-        return '📉';
+        return <TrendingUp size={20} className="text-success" />;
       default:
-        return '🌐';
+        return <Globe size={20} className="text-foreground-muted" />;
     }
   };
 
@@ -162,7 +161,8 @@ export function WebsiteExtractor({
     return (
       <Card>
         <CardContent className="p-8 text-center">
-          <div className="text-muted-foreground">Detecting website...</div>
+          <div className="spinner mx-auto mb-2"></div>
+          <div className="text-sm text-foreground-muted">Detecting website...</div>
         </CardContent>
       </Card>
     );
@@ -173,23 +173,29 @@ export function WebsiteExtractor({
       {/* Site Detection Card */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <span className="text-2xl">{getSiteIcon(siteInfo.site)}</span>
-            {siteInfo.displayName}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                siteInfo.isSupported ? 'bg-success/15' : 'bg-background-muted'
+              }`}>
+                {getSiteIcon(siteInfo.site)}
+              </div>
+              <div>
+                <CardTitle className="text-sm">{siteInfo.displayName}</CardTitle>
+                <CardDescription>Web symbol extraction</CardDescription>
+              </div>
+            </div>
             {siteInfo.isSupported ? (
-              <Badge variant="default" className="ml-2">Supported</Badge>
+              <Badge variant="success" className="text-[10px]">Supported</Badge>
             ) : (
-              <Badge variant="destructive" className="ml-2">Not Supported</Badge>
+              <Badge variant="secondary" className="text-[10px]">Not Supported</Badge>
             )}
-          </CardTitle>
-          <CardDescription>
-            Website extraction for stock symbols
-          </CardDescription>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {/* Instructions */}
-            <div className="text-sm text-foreground-muted whitespace-pre-line">
+            <div className="text-xs text-foreground-muted whitespace-pre-line bg-background-muted/50 p-3 rounded-lg border border-border/30">
               {siteInfo.instructions}
             </div>
 
@@ -198,17 +204,18 @@ export function WebsiteExtractor({
               <Button
                 onClick={handleExtractSymbols}
                 disabled={isExtracting || parentLoading}
-                className="w-full"
+                className="w-full btn-glow"
+                size="default"
               >
                 {isExtracting ? (
                   <>
-                    <span className="inline-block animate-spin mr-2">⏳</span>
+                    <div className="spinner mr-2"></div>
                     Extracting...
                   </>
                 ) : (
                   <>
-                    <span className="mr-2">🔍</span>
-                    Extract Symbols from Current Page
+                    <Search size={14} />
+                    Extract Symbols
                   </>
                 )}
               </Button>
@@ -221,7 +228,7 @@ export function WebsiteExtractor({
               className="w-full"
               size="sm"
             >
-              <span className="mr-2">🔄</span>
+              <RefreshCw size={12} />
               Re-detect Website
             </Button>
           </div>
@@ -230,48 +237,56 @@ export function WebsiteExtractor({
 
       {/* Error Display */}
       {error && (
-        <div className="p-3 rounded-md text-sm bg-error/20 text-error border border-error/30">
-          {error}
+        <div className="alert-error flex items-center gap-2">
+          <XCircle size={14} />
+          <span>{error}</span>
         </div>
       )}
 
       {/* Success Display */}
       {success && !extractedSymbols.length && (
-        <div className="p-3 rounded-md text-sm bg-success/20 text-success border border-success/30">
-          {success}
+        <div className="alert-success flex items-center gap-2">
+          <CheckCircle2 size={14} />
+          <span>{success}</span>
         </div>
       )}
 
       {/* Parent Error Display */}
       {parentError && (
-        <div className="p-3 rounded-md text-sm bg-error/20 text-error border border-error/30">
-          {parentError}
+        <div className="alert-error flex items-center gap-2">
+          <XCircle size={14} />
+          <span>{parentError}</span>
         </div>
       )}
 
       {/* Extracted Symbols Preview */}
       {extractedSymbols.length > 0 && (
-        <Card>
+        <Card className="border-primary-500/30 bg-primary-500/5">
           <CardHeader>
-            <CardTitle className="text-base">
-              📋 Extracted Symbols ({extractedSymbols.length})
-            </CardTitle>
-            <CardDescription>
-              Review and add to your list
-            </CardDescription>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-success/15 flex items-center justify-center">
+                <CheckCircle2 size={16} className="text-success" />
+              </div>
+              <div>
+                <CardTitle className="text-sm">Extracted Symbols</CardTitle>
+                <CardDescription>
+                  {extractedSymbols.length} symbols found
+                </CardDescription>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {/* Symbol Preview */}
-              <div className="max-h-64 overflow-y-auto space-y-2 p-2 bg-background-muted rounded-md">
+              <div className="max-h-48 overflow-y-auto space-y-1 p-2 bg-background-muted/50 rounded-lg border border-border/30">
                 {extractedSymbols.map((symbol, index) => (
                   <div
                     key={`${symbol.fullSymbol}-${index}`}
-                    className="flex items-center gap-2 p-2 rounded-md bg-background hover:bg-background-card transition-colors"
+                    className="flex items-center gap-2 p-2 rounded-lg bg-background/50 hover:bg-background transition-colors"
                   >
                     <Badge
                       variant={symbol.exchange === 'NSE' ? 'nse' : 'bse'}
-                      className="text-xs flex-shrink-0"
+                      className="text-[10px] flex-shrink-0"
                     >
                       {symbol.exchange}
                     </Badge>
@@ -279,7 +294,7 @@ export function WebsiteExtractor({
                       {symbol.symbol}
                     </span>
                     {symbol.stockName && (
-                      <span className="text-xs text-muted-foreground truncate">
+                      <span className="text-[11px] text-foreground-muted truncate">
                         {symbol.stockName}
                       </span>
                     )}
@@ -289,13 +304,13 @@ export function WebsiteExtractor({
 
               {/* List Selection */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
-                  Add to List:
+                <label className="text-xs font-medium text-foreground">
+                  Add to List
                 </label>
                 <select
                   value={selectedListId}
                   onChange={(e) => setSelectedListId(e.target.value)}
-                  className="w-full p-2 rounded-md bg-background-muted border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full h-10 rounded-lg bg-background-muted/50 border border-border/60 text-foreground text-sm px-3 focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all duration-200"
                 >
                   {lists.map((list) => (
                     <option key={list.id} value={list.id}>
@@ -309,9 +324,10 @@ export function WebsiteExtractor({
               <Button
                 onClick={handleAddToList}
                 disabled={!selectedListId || parentLoading}
-                className="w-full"
+                className="w-full btn-glow"
+                size="lg"
               >
-                <span className="mr-2">➕</span>
+                <Plus size={14} />
                 Add {extractedSymbols.length} symbols to {lists.find(l => l.id === selectedListId)?.name || 'list'}
               </Button>
             </div>
@@ -319,19 +335,19 @@ export function WebsiteExtractor({
         </Card>
       )}
 
-      {/* Raw Symbol String (for debugging/manual use) */}
+      {/* Raw Symbol String */}
       {symbolString && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">📝 Raw Symbol String</CardTitle>
-            <CardDescription className="text-xs">
-              Copy this if you want to use it manually
-            </CardDescription>
+        <Card className="bg-background-card/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs text-foreground-muted flex items-center gap-2">
+              <Code size={12} />
+              Raw Output
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="p-2 bg-background-muted rounded-md overflow-x-auto">
-              <code className="text-xs text-foreground-muted break-all">
-                {symbolString}
+          <CardContent className="pt-0">
+            <div className="p-2.5 bg-background-muted/70 rounded-lg overflow-x-auto border border-border/30">
+              <code className="text-[11px] text-foreground-muted break-all font-mono">
+                {symbolString.length > 200 ? symbolString.slice(0, 200) + '...' : symbolString}
               </code>
             </div>
             <Button
@@ -342,9 +358,10 @@ export function WebsiteExtractor({
               }}
               variant="outline"
               size="sm"
-              className="mt-2 w-full"
+              className="mt-2 w-full text-xs"
             >
-              📋 Copy to Clipboard
+              <Copy size={12} />
+              Copy to Clipboard
             </Button>
           </CardContent>
         </Card>

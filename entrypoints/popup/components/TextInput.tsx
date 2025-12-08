@@ -6,6 +6,7 @@ import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
+import { PenLine, Search, XCircle, CheckCircle2, Plus, HelpCircle } from 'lucide-react';
 
 export const TextInput: React.FC<TextInputProps> = ({
   value,
@@ -114,26 +115,33 @@ export const TextInput: React.FC<TextInputProps> = ({
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-base">📝 Paste Symbols</CardTitle>
-              <CardDescription>Enter comma-separated symbols in EXCHANGE:SYMBOL format</CardDescription>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-primary-500/10 flex items-center justify-center">
+                <PenLine size={16} className="text-primary-400" />
+              </div>
+              <div>
+                <CardTitle className="text-sm">Paste Symbols</CardTitle>
+                <CardDescription>Enter symbols in EXCHANGE:SYMBOL format</CardDescription>
+              </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-1.5">
               <Button
                 onClick={handlePasteExample}
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 disabled={isLoading}
+                className="h-7 px-2 text-xs"
               >
-                📋 Example
+                Example
               </Button>
               <Button
                 onClick={handleClear}
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 disabled={isLoading || !value.trim()}
+                className="h-7 px-2 text-xs"
               >
-                🗑️ Clear
+                Clear
               </Button>
             </div>
           </div>
@@ -145,56 +153,65 @@ export const TextInput: React.FC<TextInputProps> = ({
               value={value}
               onChange={handleTextChange}
               onKeyDown={handleKeyDown}
-              placeholder={`Paste symbols here...\n\nExample format:\n${placeholderText}`}
+              placeholder={`Paste symbols here...\n\nExample: ${placeholderText}`}
               disabled={isLoading}
-              rows={6}
-              className="font-mono text-sm"
+              rows={5}
+              className="font-mono text-xs"
             />
 
-            <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="text-xs">
-                  {symbolCount} symbol{symbolCount !== 1 ? 's' : ''} detected
+                <Badge variant={symbolCount > 0 ? "default" : "secondary"} className="text-[10px]">
+                  {symbolCount} symbol{symbolCount !== 1 ? 's' : ''}
                 </Badge>
                 {symbolCount > 0 && (
-                  <span className="text-foreground-muted">• Ready to parse</span>
+                  <span className="text-[11px] text-foreground-muted">Ready to parse</span>
                 )}
               </div>
-              <span className="text-xs text-foreground-muted">Ctrl+Enter to parse</span>
+              <span className="text-[10px] text-foreground-muted/70">Ctrl+Enter to parse</span>
             </div>
           </div>
 
           <Button
             onClick={handleParse}
             disabled={isLoading || !value.trim()}
-            className="w-full"
-            size="lg"
+            className="w-full btn-glow"
+            size="default"
           >
             {isLoading ? (
               <>
                 <div className="spinner mr-2"></div>
-                Parsing Symbols...
+                Parsing...
               </>
             ) : (
-              '🚀 Parse Symbols'
+              <>
+                <Search size={14} />
+                Parse Symbols
+              </>
             )}
           </Button>
 
           {/* Parse Result */}
           {parseResult && (
-            <div className={`p-3 rounded-md text-sm ${
+            <div className={`p-3 rounded-lg text-sm flex items-center gap-2 ${
               parseResult.startsWith('Error')
-                ? 'bg-error/20 text-error border border-error/30'
-                : 'bg-primary-500/20 text-primary-400 border border-primary-500/30'
+                ? 'bg-error/15 text-error border border-error/25'
+                : 'bg-primary-500/15 text-primary-400 border border-primary-500/25'
             }`}>
-              {parseResult}
+              {parseResult.startsWith('Error') ? (
+                <XCircle size={14} />
+              ) : (
+                <CheckCircle2 size={14} />
+              )}
+              <span>{parseResult}</span>
             </div>
           )}
 
           {/* Error Display */}
           {error && (
-            <div className="p-3 rounded-md text-sm bg-error/20 text-error border border-error/30">
-              {error}
+            <div className="p-3 rounded-lg text-sm bg-error/15 text-error border border-error/25 flex items-center gap-2">
+              <XCircle size={14} />
+              <span>{error}</span>
             </div>
           )}
         </CardContent>
@@ -202,102 +219,86 @@ export const TextInput: React.FC<TextInputProps> = ({
 
       {/* Parsed Symbols Preview */}
       {parsedSymbols.length > 0 && (
-        <Card>
+        <Card className="border-primary-500/30 bg-primary-500/5">
           <CardHeader>
-            <CardTitle className="text-base">✅ Extracted Symbols</CardTitle>
-            <CardDescription>
-              Found {parsedSymbols.length} symbols • Ready to create list
-            </CardDescription>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-success/15 flex items-center justify-center">
+                <CheckCircle2 size={16} className="text-success" />
+              </div>
+              <div>
+                <CardTitle className="text-sm">Symbols Parsed</CardTitle>
+                <CardDescription>
+                  {parsedSymbols.length} symbols ready to create list
+                </CardDescription>
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Symbols Preview */}
-            <div className="max-h-20 overflow-y-auto">
-              <div className="flex flex-wrap gap-1">
-                {parsedSymbols.slice(0, 8).map((symbol, index) => (
+            <div className="max-h-16 overflow-y-auto">
+              <div className="flex flex-wrap gap-1.5">
+                {parsedSymbols.slice(0, 10).map((symbol, index) => (
                   <Badge key={index} variant={symbol.exchange === 'NSE' ? 'nse' : 'bse'} className="text-xs">
                     {symbol.symbol}
                   </Badge>
                 ))}
-                {parsedSymbols.length > 8 && (
-                  <Badge variant="outline" className="text-xs">
-                    +{parsedSymbols.length - 8} more
+                {parsedSymbols.length > 10 && (
+                  <Badge variant="count" className="text-xs">
+                    +{parsedSymbols.length - 10} more
                   </Badge>
                 )}
               </div>
             </div>
 
             {/* List Name Input */}
-            <div className="space-y-2 bg-background-muted p-3 rounded-md">
-              <label className="text-sm font-semibold text-foreground">📝 List Name</label>
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-foreground">List Name</label>
               <Input
                 value={listName}
                 onChange={(e) => setListName(e.target.value)}
                 placeholder="Enter list name..."
-                className="w-full bg-background"
+                className="bg-background"
               />
-              <p className="text-xs text-foreground-muted">Give your list a memorable name</p>
             </div>
 
             {/* Create List Button */}
             <Button
               onClick={handleCreateList}
               disabled={!listName.trim() || parsedSymbols.length === 0 || isLoading}
-              className="w-full h-12 text-base font-semibold"
+              className="w-full btn-glow"
               size="lg"
             >
-              🚀 Create List with {parsedSymbols.length} symbols
+              <Plus size={16} />
+              Create List with {parsedSymbols.length} symbols
             </Button>
           </CardContent>
         </Card>
       )}
 
       {/* Format Guide Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">📚 Format Guide</CardTitle>
-          <CardDescription>Supported symbol formats and examples</CardDescription>
+      <Card className="bg-background-card/50">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-xs text-foreground-muted flex items-center gap-2">
+            <HelpCircle size={14} />
+            Format Guide
+          </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="pt-0 space-y-3">
           {/* Examples */}
-          <div className="space-y-2">
-            <div className="text-sm font-medium text-foreground">Examples:</div>
-            <div className="space-y-1 text-sm">
-              <div className="flex items-center gap-2">
-                <Badge variant="nse" className="text-xs">NSE</Badge>
-                <code className="bg-background-muted px-2 py-1 rounded text-xs">NSE:INNOVANA, NSE:DYCL</code>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="bse" className="text-xs">BSE</Badge>
-                <code className="bg-background-muted px-2 py-1 rounded text-xs">BSE:CIANAGRO, BSE:IIL</code>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-xs">Mixed</Badge>
-                <code className="bg-background-muted px-2 py-1 rounded text-xs">NSE:SYMBOL1, BSE:SYMBOL2</code>
-              </div>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2 text-xs">
+              <Badge variant="nse" className="text-[10px]">NSE</Badge>
+              <code className="bg-background-muted/70 px-2 py-0.5 rounded text-[11px] text-foreground-muted border border-border/30">NSE:RELIANCE, NSE:TCS</code>
+            </div>
+            <div className="flex items-center gap-2 text-xs">
+              <Badge variant="bse" className="text-[10px]">BSE</Badge>
+              <code className="bg-background-muted/70 px-2 py-0.5 rounded text-[11px] text-foreground-muted border border-border/30">BSE:INFY, BSE:HDFC</code>
             </div>
           </div>
 
-          {/* Rules */}
-          <div className="space-y-2">
-            <div className="text-sm font-medium text-foreground">Rules:</div>
-            <div className="text-sm text-foreground-muted space-y-1">
-              <div className="flex items-start gap-2">
-                <span className="text-primary-400">•</span>
-                <span>Separate symbols with commas</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <span className="text-primary-400">•</span>
-                <span>Format: <code className="bg-background-muted px-1 rounded text-xs">EXCHANGE:SYMBOL</code></span>
-              </div>
-              <div className="flex items-start gap-2">
-                <span className="text-primary-400">•</span>
-                <span>Supported exchanges: <Badge variant="nse" className="text-xs mx-1">NSE</Badge>, <Badge variant="bse" className="text-xs">BSE</Badge></span>
-              </div>
-              <div className="flex items-start gap-2">
-                <span className="text-primary-400">•</span>
-                <span>Symbol names should contain only letters and numbers</span>
-              </div>
-            </div>
+          {/* Rules - Compact */}
+          <div className="text-[11px] text-foreground-muted leading-relaxed">
+            Comma-separated | Format: EXCHANGE:SYMBOL | Alphanumeric symbols only
           </div>
         </CardContent>
       </Card>

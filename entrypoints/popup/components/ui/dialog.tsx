@@ -69,7 +69,8 @@ export const Dialog: React.FC<DialogProps> = ({ open, onOpenChange, children }) 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 animate-fade-in"
+      style={{ backdropFilter: 'blur(4px)' }}
       onClick={handleBackdropClick}
     >
       {children}
@@ -80,7 +81,7 @@ export const Dialog: React.FC<DialogProps> = ({ open, onOpenChange, children }) 
 export const DialogContent: React.FC<DialogContentProps> = ({ children, className = '' }) => {
   return (
     <div
-      className={`relative bg-background-card border border-border rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[80vh] overflow-hidden animate-slide-in ${className}`}
+      className={`relative bg-background-card border border-border/60 rounded-xl shadow-popup max-w-md w-full mx-4 max-h-[80vh] overflow-hidden animate-slide-in ${className}`}
       onClick={(e) => e.stopPropagation()}
     >
       {children}
@@ -90,7 +91,7 @@ export const DialogContent: React.FC<DialogContentProps> = ({ children, classNam
 
 export const DialogHeader: React.FC<DialogHeaderProps> = ({ children, className = '' }) => {
   return (
-    <div className={`flex flex-col space-y-1.5 p-4 border-b border-border ${className}`}>
+    <div className={`flex flex-col space-y-1 p-4 border-b border-border/30 ${className}`}>
       {children}
     </div>
   );
@@ -98,7 +99,7 @@ export const DialogHeader: React.FC<DialogHeaderProps> = ({ children, className 
 
 export const DialogTitle: React.FC<DialogTitleProps> = ({ children, className = '' }) => {
   return (
-    <h2 className={`text-lg font-semibold text-foreground ${className}`}>
+    <h2 className={`text-base font-semibold text-foreground ${className}`}>
       {children}
     </h2>
   );
@@ -106,7 +107,7 @@ export const DialogTitle: React.FC<DialogTitleProps> = ({ children, className = 
 
 export const DialogDescription: React.FC<DialogDescriptionProps> = ({ children, className = '' }) => {
   return (
-    <p className={`text-sm text-foreground-muted ${className}`}>
+    <p className={`text-xs text-foreground-muted ${className}`}>
       {children}
     </p>
   );
@@ -114,7 +115,7 @@ export const DialogDescription: React.FC<DialogDescriptionProps> = ({ children, 
 
 export const DialogFooter: React.FC<DialogFooterProps> = ({ children, className = '' }) => {
   return (
-    <div className={`flex items-center justify-end gap-2 p-4 border-t border-border ${className}`}>
+    <div className={`flex items-center justify-end gap-2 p-4 border-t border-border/30 bg-background-muted/30 ${className}`}>
       {children}
     </div>
   );
@@ -122,8 +123,8 @@ export const DialogFooter: React.FC<DialogFooterProps> = ({ children, className 
 
 export const DialogClose: React.FC<{ onClick?: () => void; children?: React.ReactNode }> = ({ onClick, children }) => {
   return (
-    <Button variant="ghost" size="sm" onClick={onClick}>
-      {children || 'Close'}
+    <Button variant="outline" size="sm" onClick={onClick}>
+      {children || 'Done'}
     </Button>
   );
 };

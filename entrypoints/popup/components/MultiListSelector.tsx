@@ -10,6 +10,7 @@ import {
   DialogClose
 } from './ui/dialog';
 import { Button } from './ui/button';
+import { Star, List, PlusCircle, Check, XSquare } from 'lucide-react';
 
 interface MultiListSelectorProps {
   symbol: StockSymbol;
@@ -81,43 +82,39 @@ export const MultiListSelector: React.FC<MultiListSelectorProps> = ({
     return (
       <div
         key={list.id}
-        className={`flex items-center justify-between p-2 rounded-md hover:bg-background-muted transition-colors ${
-          isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+        className={`flex items-center justify-between p-2.5 rounded-lg border transition-all duration-150 ${
+          isDisabled
+            ? 'opacity-50 cursor-not-allowed bg-background-muted/30 border-border/20'
+            : isInList
+            ? 'cursor-pointer bg-primary-500/10 border-primary-500/30 hover:bg-primary-500/15'
+            : 'cursor-pointer bg-background-muted/30 border-border/20 hover:bg-background-muted/50 hover:border-border/40'
         }`}
         onClick={() => !isDisabled && !isProcessing && handleToggleList(list.id, isInList)}
       >
-        <div className="flex items-center gap-2 flex-1 min-w-0">
+        <div className="flex items-center gap-2.5 flex-1 min-w-0">
           {/* Checkbox */}
           <div
-            className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+            className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-all duration-150 ${
               isInList
-                ? 'bg-primary-500 border-primary-500'
-                : 'border-foreground-muted'
+                ? 'bg-primary-500 shadow-sm'
+                : 'border border-foreground-muted/40'
             }`}
           >
             {isInList && (
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                <path
-                  d="M10 3L4.5 8.5L2 6"
-                  stroke="white"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+              <Check size={10} className="text-white" strokeWidth={3} />
             )}
           </div>
 
           {/* Color indicator */}
           <div
-            className="w-3 h-3 rounded-full flex-shrink-0"
+            className="w-2.5 h-2.5 rounded-full flex-shrink-0 ring-1 ring-white/10"
             style={{ backgroundColor: list.color }}
           />
 
           {/* List name */}
           <span className={`text-sm truncate ${isInList ? 'font-medium text-foreground' : 'text-foreground-muted'}`}>
             {list.name}
-            {isCurrentList && ' (current)'}
+            {isCurrentList && <span className="text-[10px] text-primary-400 ml-1">(current)</span>}
           </span>
         </div>
 
@@ -133,18 +130,22 @@ export const MultiListSelector: React.FC<MultiListSelectorProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Manage Lists</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <Star size={16} className="text-primary-400" />
+            Manage Lists
+          </DialogTitle>
           <DialogDescription>
-            {symbol.fullSymbol} • Select lists to add or remove this symbol
+            <span className="font-medium text-foreground">{symbol.fullSymbol}</span> - Select lists to add or remove
           </DialogDescription>
         </DialogHeader>
 
-        <div className="max-h-[400px] overflow-y-auto p-4 space-y-4">
+        <div className="max-h-[350px] overflow-y-auto p-4 space-y-4">
           {/* Favorite Lists */}
           {favoriteLists.length > 0 && (
             <div>
-              <h3 className="text-xs font-semibold text-foreground-muted uppercase mb-2">
-                ⭐ Favorites
+              <h3 className="text-[10px] font-semibold text-foreground-muted uppercase tracking-wider mb-2 flex items-center gap-1">
+                <Star size={10} className="text-warning" fill="currentColor" />
+                Favorites
               </h3>
               <div className="space-y-1">
                 {favoriteLists.map(renderListItem)}
@@ -155,8 +156,9 @@ export const MultiListSelector: React.FC<MultiListSelectorProps> = ({
           {/* Predefined Lists */}
           {predefinedLists.length > 0 && (
             <div>
-              <h3 className="text-xs font-semibold text-foreground-muted uppercase mb-2">
-                📋 Predefined Lists
+              <h3 className="text-[10px] font-semibold text-foreground-muted uppercase tracking-wider mb-2 flex items-center gap-1">
+                <List size={10} />
+                Predefined Lists
               </h3>
               <div className="space-y-1">
                 {predefinedLists.map(renderListItem)}
@@ -167,8 +169,9 @@ export const MultiListSelector: React.FC<MultiListSelectorProps> = ({
           {/* Custom Lists */}
           {customLists.length > 0 && (
             <div>
-              <h3 className="text-xs font-semibold text-foreground-muted uppercase mb-2">
-                🎨 Custom Lists
+              <h3 className="text-[10px] font-semibold text-foreground-muted uppercase tracking-wider mb-2 flex items-center gap-1">
+                <PlusCircle size={10} />
+                Custom Lists
               </h3>
               <div className="space-y-1">
                 {customLists.map(renderListItem)}
@@ -178,8 +181,11 @@ export const MultiListSelector: React.FC<MultiListSelectorProps> = ({
 
           {/* Empty state */}
           {allLists.length === 0 && (
-            <div className="text-center py-8 text-foreground-muted">
-              <p className="text-sm">No lists available</p>
+            <div className="empty-state py-6">
+              <div className="empty-state-icon">
+                <XSquare size={24} className="mx-auto text-foreground-muted" strokeWidth={1.5} />
+              </div>
+              <p className="text-xs text-foreground-muted">No lists available</p>
             </div>
           )}
         </div>

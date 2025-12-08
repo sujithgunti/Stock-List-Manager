@@ -251,37 +251,40 @@ export default defineContentScript({
 
       const toggleButton = document.createElement('button');
       toggleButton.id = 'tradingview-symbol-manager-toggle';
-      toggleButton.innerHTML = '📊';
+      toggleButton.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
+        <polyline points="16 7 22 7 22 13"/>
+      </svg>`;
       toggleButton.title = 'Click to open Symbol Manager (Ctrl+Shift+S)';
       toggleButton.style.cssText = `
         position: fixed;
         top: 20px;
         right: 20px;
         z-index: 10000;
-        width: 48px;
-        height: 48px;
-        background: #2962FF;
-        border: 2px solid #ffffff;
+        width: 44px;
+        height: 44px;
+        background: linear-gradient(135deg, #2962FF 0%, #1E4DD8 100%);
+        border: none;
         border-radius: 12px;
         color: white;
-        font-size: 20px;
         cursor: pointer;
         box-shadow: 0 4px 12px rgba(41, 98, 255, 0.4);
         transition: all 0.2s ease;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-family: system-ui, -apple-system, sans-serif;
       `;
 
       toggleButton.addEventListener('mouseenter', () => {
-        toggleButton.style.background = '#1E53E5';
+        toggleButton.style.background = 'linear-gradient(135deg, #1E53E5 0%, #1840B8 100%)';
         toggleButton.style.transform = 'scale(1.05)';
+        toggleButton.style.boxShadow = '0 6px 16px rgba(41, 98, 255, 0.5)';
       });
 
       toggleButton.addEventListener('mouseleave', () => {
-        toggleButton.style.background = '#2962FF';
+        toggleButton.style.background = 'linear-gradient(135deg, #2962FF 0%, #1E4DD8 100%)';
         toggleButton.style.transform = 'scale(1)';
+        toggleButton.style.boxShadow = '0 4px 12px rgba(41, 98, 255, 0.4)';
       });
 
       toggleButton.addEventListener('click', (e) => {
@@ -422,6 +425,9 @@ export default defineContentScript({
         .text-destructive { color: var(--error); }
         .text-error { color: var(--error); }
         .text-warning { color: var(--warning); }
+        .text-white { color: white; }
+        .text-white\\/80 { color: rgba(255, 255, 255, 0.8); }
+        .hover\\:text-white:hover { color: white; }
         .border { border: 1px solid var(--border); }
         .border-muted { border-color: var(--background-muted); }
 
@@ -472,13 +478,21 @@ export default defineContentScript({
         .opacity-0 { opacity: 0; }
         .group:hover .group-hover\\:opacity-100 { opacity: 1; }
 
+        /* Header gradient */
+        .header-gradient {
+          background: linear-gradient(135deg, #2962FF 0%, #1E4DD8 100%);
+          border-radius: 0.5rem 0.5rem 0 0;
+          margin: -1px -1px 0 -1px;
+        }
+
         /* Card styles */
         .card {
-          border-radius: 0.5rem;
+          border-radius: 0.75rem;
           border: 1px solid var(--border);
           background: var(--background-card);
           color: var(--foreground);
-          box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2);
+          overflow: hidden;
         }
 
         /* Button styles */

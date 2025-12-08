@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
+import { FilePlus, XCircle, CheckCircle2, Plus, HelpCircle } from 'lucide-react';
 
 export const FileUpload: React.FC<FileUploadProps> = ({
   onFileSelect,
@@ -126,11 +127,11 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     <div className="space-y-4">
       {/* Upload Area */}
       <Card>
-        <CardContent className="p-6">
+        <CardContent className="p-4">
           <div
             className={`
-              border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer
-              ${isDragOver ? 'border-primary-500 bg-primary-500/10' : 'border-border hover:border-border-light'}
+              border-2 border-dashed rounded-xl p-6 text-center transition-all duration-200 cursor-pointer
+              ${isDragOver ? 'border-primary-500 bg-primary-500/10 scale-[1.01]' : 'border-border/50 hover:border-primary-500/50 hover:bg-primary-500/5'}
               ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}
             `}
             onDrop={handleDrop}
@@ -148,19 +149,21 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             />
 
             {isLoading ? (
-              <div className="space-y-2">
+              <div className="space-y-3 py-2">
                 <div className="spinner mx-auto"></div>
-                <p className="text-foreground-muted">Processing file...</p>
+                <p className="text-sm text-foreground-muted">Processing file...</p>
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="text-4xl">📊</div>
-                <div>
-                  <h3 className="text-lg font-semibold text-foreground">Upload CSV File</h3>
-                  <p className="text-foreground-muted">Drop your CSV file here or click to browse</p>
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-primary-500/10 flex items-center justify-center">
+                  <FilePlus size={28} className="text-primary-400" strokeWidth={1.5} />
                 </div>
-                <Button variant="outline" size="lg">
-                  Choose CSV File
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Upload CSV File</h3>
+                  <p className="text-xs text-foreground-muted mt-0.5">Drop your file here or click to browse</p>
+                </div>
+                <Button variant="outline" size="sm" className="mt-2">
+                  Choose File
                 </Button>
               </div>
             )}
@@ -168,14 +171,19 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
           {/* Status Messages */}
           {uploadStatus && (
-            <div className={`mt-4 p-3 rounded-md text-sm ${
+            <div className={`mt-3 p-3 rounded-lg text-sm flex items-center gap-2 ${
               uploadStatus.startsWith('Error')
-                ? 'bg-error/20 text-error border border-error/30'
+                ? 'bg-error/15 text-error border border-error/25'
                 : uploadStatus.includes('success')
-                ? 'bg-success/20 text-success border border-success/30'
-                : 'bg-primary-500/20 text-primary-400 border border-primary-500/30'
+                ? 'bg-success/15 text-success border border-success/25'
+                : 'bg-primary-500/15 text-primary-400 border border-primary-500/25'
             }`}>
-              {uploadStatus}
+              {uploadStatus.startsWith('Error') ? (
+                <XCircle size={16} />
+              ) : (
+                <CheckCircle2 size={16} />
+              )}
+              <span>{uploadStatus}</span>
             </div>
           )}
         </CardContent>
@@ -183,71 +191,78 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
       {/* Parsed Symbols Preview */}
       {parsedSymbols.length > 0 && (
-        <Card>
+        <Card className="border-primary-500/30 bg-primary-500/5">
           <CardHeader>
-            <CardTitle className="text-base">Extracted Symbols</CardTitle>
-            <CardDescription>
-              Found {parsedSymbols.length} symbols from {fileName}
-            </CardDescription>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-success/15 flex items-center justify-center">
+                <CheckCircle2 size={16} className="text-success" />
+              </div>
+              <div>
+                <CardTitle className="text-sm">Symbols Extracted</CardTitle>
+                <CardDescription>
+                  {parsedSymbols.length} symbols from {fileName}
+                </CardDescription>
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Symbols Preview */}
-            <div className="max-h-20 overflow-y-auto">
-              <div className="flex flex-wrap gap-1">
-                {parsedSymbols.slice(0, 6).map((symbol, index) => (
+            <div className="max-h-16 overflow-y-auto">
+              <div className="flex flex-wrap gap-1.5">
+                {parsedSymbols.slice(0, 8).map((symbol, index) => (
                   <Badge key={index} variant="nse" className="text-xs">
                     {symbol.symbol}
                   </Badge>
                 ))}
-                {parsedSymbols.length > 6 && (
-                  <Badge variant="outline" className="text-xs">
-                    +{parsedSymbols.length - 6} more
+                {parsedSymbols.length > 8 && (
+                  <Badge variant="count" className="text-xs">
+                    +{parsedSymbols.length - 8} more
                   </Badge>
                 )}
               </div>
             </div>
 
-            {/* List Name Input - More prominent */}
-            <div className="space-y-2 bg-background-muted p-3 rounded-md">
-              <label className="text-sm font-semibold text-foreground">📝 List Name</label>
+            {/* List Name Input */}
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-foreground">List Name</label>
               <Input
                 value={listName}
                 onChange={(e) => setListName(e.target.value)}
                 placeholder="Enter list name..."
-                className="w-full bg-background"
+                className="bg-background"
               />
-              <p className="text-xs text-foreground-muted">Give your list a memorable name</p>
             </div>
 
-            {/* Create List Button - More prominent */}
+            {/* Create List Button */}
             <Button
               onClick={handleCreateList}
               disabled={!listName.trim() || parsedSymbols.length === 0}
-              className="w-full h-12 text-base font-semibold"
+              className="w-full btn-glow"
               size="lg"
             >
-              🚀 Create List with {parsedSymbols.length} symbols
+              <Plus size={16} />
+              Create List with {parsedSymbols.length} symbols
             </Button>
           </CardContent>
         </Card>
       )}
 
       {/* Help Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">CSV Format Example</CardTitle>
+      <Card className="bg-background-card/50">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-xs text-foreground-muted flex items-center gap-2">
+            <HelpCircle size={14} />
+            CSV Format
+          </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="bg-background-muted p-3 rounded-md text-xs font-mono">
+        <CardContent className="pt-0">
+          <div className="bg-background-muted/70 p-2.5 rounded-lg text-xs font-mono border border-border/30">
             <div className="text-foreground-muted">Sr.,Stock Name,Symbol</div>
-            <div className="text-foreground">1,Bharat Gears Limited,BHARATGEAR</div>
-            <div className="text-foreground">2,Beardsell Limited,BEARDSELL</div>
-            <div className="text-foreground">3,Zuari Industries Ltd,ZUARIIND</div>
+            <div className="text-foreground">1,Bharat Gears,BHARATGEAR</div>
+            <div className="text-foreground">2,Beardsell Ltd,BEARDSELL</div>
           </div>
-          <div className="mt-3 text-xs text-foreground-muted space-y-1">
-            <p>• First row should contain headers</p>
-            <p>• Symbols will be imported with NSE exchange by default</p>
-            <p>• Maximum file size: 1MB</p>
+          <div className="mt-2.5 text-xs text-foreground-muted space-y-0.5">
+            <p>First row = headers | NSE exchange default | Max 1MB</p>
           </div>
         </CardContent>
       </Card>

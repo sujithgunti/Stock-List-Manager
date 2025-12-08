@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
 import { MultiListSelector } from './MultiListSelector';
+import { TrendingUp, Star, ExternalLink, Trash2, Info } from 'lucide-react';
 
 type SortOption = 'symbol' | 'exchange' | 'stockName';
 type SortDirection = 'asc' | 'desc';
@@ -137,19 +138,21 @@ export const SymbolList: React.FC<SymbolListProps> = ({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-4">
+      <div className="flex items-center justify-center p-6">
         <div className="spinner mr-2"></div>
-        <span className="text-foreground-muted">Loading symbols...</span>
+        <span className="text-sm text-foreground-muted">Loading symbols...</span>
       </div>
     );
   }
 
   if (symbols.length === 0) {
     return (
-      <div className="text-center p-4">
-        <div className="text-2xl mb-2">📊</div>
-        <h3 className="text-sm font-medium text-foreground mb-1">No symbols yet</h3>
-        <p className="text-xs text-foreground-muted">Upload a CSV file or paste symbols to get started</p>
+      <div className="empty-state">
+        <div className="empty-state-icon">
+          <TrendingUp size={32} className="mx-auto text-foreground-muted" strokeWidth={1.5} />
+        </div>
+        <h3 className="empty-state-title">No symbols yet</h3>
+        <p className="empty-state-description">Upload a CSV or paste symbols to start</p>
       </div>
     );
   }
@@ -203,13 +206,11 @@ export const SymbolList: React.FC<SymbolListProps> = ({
       <div className="space-y-1">
         {processedSymbols.map((symbol) => {
           const inOtherLists = isSymbolInOtherLists(symbol);
-          const starIcon = inOtherLists ? '★' : '☆';
-          const starClass = inOtherLists ? 'text-warning' : 'text-foreground-muted opacity-50';
 
           return (
             <div
               key={symbol.fullSymbol}
-              className="flex items-center justify-between p-2 rounded-md bg-background-muted hover:bg-background-muted/80 cursor-pointer transition-colors group"
+              className="symbol-item flex items-center justify-between p-2 rounded-lg bg-background-muted/50 hover:bg-background-muted cursor-pointer transition-all duration-150 group border border-transparent hover:border-border/30"
               onClick={() => handleSymbolClick(symbol)}
               title={`Click to open ${symbol.fullSymbol} on TradingView`}
             >
@@ -218,26 +219,30 @@ export const SymbolList: React.FC<SymbolListProps> = ({
                 {multiListEnabled && (
                   <button
                     onClick={(e) => handleStarClick(e, symbol)}
-                    className={`flex-shrink-0 text-lg hover:scale-110 transition-transform ${starClass}`}
-                    title={inOtherLists ? 'In multiple lists - click to manage' : 'Only in this list - click to add to others'}
+                    className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center transition-all duration-150 ${
+                      inOtherLists
+                        ? 'text-warning bg-warning/10 hover:bg-warning/20'
+                        : 'text-foreground-muted/40 hover:text-foreground-muted hover:bg-background-card'
+                    }`}
+                    title={inOtherLists ? 'In multiple lists - click to manage' : 'Click to add to other lists'}
                   >
-                    {starIcon}
+                    <Star size={12} fill={inOtherLists ? 'currentColor' : 'none'} />
                   </button>
                 )}
 
-                <Badge variant={symbol.exchange === 'NSE' ? 'nse' : 'bse'} className="text-xs flex-shrink-0">
+                <Badge variant={symbol.exchange === 'NSE' ? 'nse' : 'bse'} className="text-[10px] flex-shrink-0">
                   {symbol.exchange}
                 </Badge>
                 <div className="min-w-0">
                   <div className="text-sm font-medium text-foreground truncate">{symbol.symbol}</div>
                   {symbol.stockName && (
-                    <div className="text-xs text-foreground-muted truncate">{symbol.stockName}</div>
+                    <div className="text-[11px] text-foreground-muted truncate">{symbol.stockName}</div>
                   )}
                 </div>
               </div>
 
               <div className="flex items-center gap-1 flex-shrink-0">
-                <div className="text-xs opacity-0 group-hover:opacity-100 transition-opacity">🔗</div>
+                <ExternalLink size={12} className="opacity-0 group-hover:opacity-50 transition-opacity text-foreground-muted" />
                 <Button
                   onClick={(e) => handleDeleteClick(e, symbol)}
                   variant="ghost"
@@ -245,7 +250,7 @@ export const SymbolList: React.FC<SymbolListProps> = ({
                   className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-error/20 hover:text-error"
                   title="Remove symbol"
                 >
-                  🗑️
+                  <Trash2 size={14} />
                 </Button>
               </div>
             </div>
@@ -254,9 +259,10 @@ export const SymbolList: React.FC<SymbolListProps> = ({
       </div>
 
       {/* Help text */}
-      {symbols.length > 0 && (
-        <div className="text-xs text-foreground-muted text-center pt-1">
-          💡 Click any symbol to open its chart on TradingView
+      {symbols.length > 3 && (
+        <div className="text-[11px] text-foreground-muted/70 text-center pt-1 flex items-center justify-center gap-1">
+          <Info size={10} />
+          Click any symbol to open on TradingView
         </div>
       )}
 
