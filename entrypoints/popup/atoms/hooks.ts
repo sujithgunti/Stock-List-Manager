@@ -25,9 +25,15 @@ import {
   moveSymbolAtom,
   copySymbolAtom,
   initializePredefinedListsAtom,
-  migrateToEnhancedSchemaAtom
+  migrateToEnhancedSchemaAtom,
+  authUserAtom,
+  authLoadingAtom,
+  authErrorAtom,
+  signInWithGoogleAtom,
+  signOutAtom
 } from './index'
-import { SymbolList, StockSymbol, AppSettings, ParseResult, ListReference } from '../types/index'
+import { SymbolList, StockSymbol, AppSettings, ParseResult, ListReference, AuthUser } from '../types/index'
+import React from 'react'
 
 // Symbol Lists Management
 export const useSymbolLists = () => {
@@ -89,6 +95,59 @@ export const useActiveTab = () => {
 
 export const useTextInput = () => {
   return useAtom(textInputAtom)
+}
+
+// Authentication
+export const useAuth = () => {
+  const [user, setUser] = useAtom(authUserAtom)
+  const [loading, setLoading] = useAtom(authLoadingAtom)
+  const [error, setError] = useAtom(authErrorAtom)
+  const signIn = useSetAtom(signInWithGoogleAtom)
+  const signOut = useSetAtom(signOutAtom)
+  const [authStatusBound, setAuthStatusBound] = React.useState(false)
+
+  // Listen for auth results from sandbox window via postMessage
+  React.useEffect(() => {
+    if (authStatusBound) return
+    const handler = (event: MessageEvent) => {
+      const msg: any = event.data
+      if (msg?.type === 'AUTH_SUCCESS') {
+        setUser({
+          uid: msg.user.uid,
+          displayName: msg.user.displayName,
+          email: msg.user.email,
+          photoURL: msg.user.photoURL,
+          idToken: msg.idToken,
+        })
+        setError('')
+      } else if (msg?.type === 'AUTH_ERROR') {
+        setError(msg.error || 'Auth failed')
+      } else if (msg?.type === 'AUTH_SIGNED_OUT') {
+        setUser(null)
+        setError('')
+      }
+    }
+    window.addEventListener('message', handler)
+    setAuthStatusBound(true)
+    return () => {
+      window.removeEventListener('message', handler)
+    }
+  }, [authStatusBound, setUser, setError])
+
+  const clearError = () => setError('')
+  const setAuthUser = (value: AuthUser | null) => setUser(value)
+  const setAuthLoading = (value: boolean) => setLoading(value)
+
+  return {
+    user,
+    loading,
+    error,
+    signIn,
+    signOut,
+    clearError,
+    setAuthUser,
+    setAuthLoading,
+  }
 }
 
 // Statistics

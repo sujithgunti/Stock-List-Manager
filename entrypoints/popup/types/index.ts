@@ -74,6 +74,15 @@ export interface AppSettings {
   maxSymbolsPerList: number;
 }
 
+// Auth types
+export interface AuthUser {
+  uid: string;
+  displayName?: string | null;
+  email?: string | null;
+  photoURL?: string | null;
+  idToken?: string;
+}
+
 // Component prop types
 export interface FileUploadProps {
   onFileSelect: (file: File) => void;
@@ -94,8 +103,6 @@ export interface WebsiteExtractorProps {
   onParsedSymbols: (result: ParseResult, listName: string) => void;
   isLoading: boolean;
   error?: string;
-  lists: SymbolList[];
-  currentList: SymbolList | null;
 }
 
 export interface SymbolListProps {

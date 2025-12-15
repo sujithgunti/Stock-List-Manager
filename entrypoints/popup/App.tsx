@@ -6,6 +6,7 @@ import { SymbolList } from './components/SymbolList';
 import { ListManager } from './components/ListManager';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card';
+import { LoginScreen } from './components/LoginScreen';
 import {
   TrendingUp,
   CheckCircle2,
@@ -28,7 +29,8 @@ import {
   useMigrateToEnhancedSchema,
   useSymbolOccurrences,
   useCopySymbol,
-  useEnhancedListManager
+  useEnhancedListManager,
+  useAuth
 } from './atoms/hooks';
 import './App.css';
 
@@ -56,6 +58,46 @@ function App() {
   // Phase 7: Enhanced list management for multi-list support
   const symbolOccurrences = useSymbolOccurrences();
   const copySymbol = useCopySymbol();
+  const {
+    user: authUser,
+    loading: authLoading,
+    error: authError,
+    signIn,
+    signOut,
+    clearError: clearAuthError,
+    setAuthUser
+  } = useAuth();
+
+  // Manual hydration check to ensure auth state is synced
+  useEffect(() => {
+    const checkStorage = async () => {
+      try {
+        const result = await chrome.storage.local.get('authUser');
+        console.log('🔍 Manual Storage Check:', result);
+
+        if (result.authUser) {
+          let finalUser = result.authUser;
+          // If Jotai saved it, it might be a JSON string. Parse it.
+          if (typeof finalUser === 'string') {
+            try {
+              finalUser = JSON.parse(finalUser);
+            } catch (e) {
+              console.error('Failed to parse authUser string:', e);
+            }
+          }
+
+          // Only set if we have a valid object and current state is empty
+          if (finalUser && typeof finalUser === 'object' && !authUser) {
+            console.log('⚡ Force-setting auth user from storage (parsed)');
+            setAuthUser(finalUser);
+          }
+        }
+      } catch (e) {
+        console.error('Storage check failed:', e);
+      }
+    };
+    checkStorage();
+  }, []);
 
   // Wrapper functions for SymbolList component
   const handleCopySymbol = async (symbol: StockSymbol, toListId: string) => {
@@ -133,6 +175,27 @@ function App() {
     await deleteList(listId);
   };
 
+  const handleSignIn = async () => {
+    clearAuthError();
+    await signIn();
+  };
+
+  const handleSignOut = async () => {
+    clearAuthError();
+    await signOut();
+  };
+
+  // If not authenticated, show Login Screen
+  if (!authUser) {
+    return (
+      <LoginScreen
+        onSignIn={handleSignIn}
+        isLoading={authLoading}
+        error={authError}
+      />
+    );
+  }
+
   return (
     <div className="w-full h-full flex flex-col bg-background">
       {/* Header */}
@@ -144,6 +207,26 @@ function App() {
           <div className="flex-1">
             <h1 className="text-base font-semibold text-foreground tracking-tight">TradeFlow</h1>
             <p className="text-xs text-foreground-muted">Import and manage your watchlists</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {/* User is guaranteed to be logged in here now */}
+            {authUser.photoURL && (
+              <img
+                src={authUser.photoURL}
+                alt={authUser.displayName || 'User'}
+                className="w-7 h-7 rounded-full border border-border/50"
+              />
+            )}
+            <div className="flex flex-col leading-tight">
+              <span className="text-xs text-foreground">{authUser.displayName || 'User'}</span>
+              <button
+                className="text-[11px] text-primary-400 hover:text-primary-300 transition-colors text-right"
+                onClick={handleSignOut}
+                disabled={authLoading}
+              >
+                {authLoading ? 'Signing out…' : 'Sign out'}
+              </button>
+            </div>
           </div>
           {currentList && (
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary-500/10 border border-primary-500/20">
@@ -167,20 +250,18 @@ function App() {
           <span>{error}</span>
         </div>
       )}
+      {authError && (
+        <div className="mx-4 mt-3 alert-error flex items-center gap-2">
+          <XCircle size={16} />
+          <span>{authError}</span>
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="flex-1 overflow-hidden">
         <Tabs defaultValue="upload" className="h-full flex flex-col">
           <div className="flex-shrink-0 px-4 pt-3">
             <TabsList className="grid w-full grid-cols-4 h-10 p-1 bg-background-muted rounded-lg">
-              <TabsTrigger value="upload" className="text-xs gap-1.5 data-[state=active]:shadow-md">
-                <FileText size={14} />
-                CSV
-              </TabsTrigger>
-              <TabsTrigger value="text" className="text-xs gap-1.5 data-[state=active]:shadow-md">
-                <PenLine size={14} />
-                Text
-              </TabsTrigger>
               <TabsTrigger value="website" className="text-xs gap-1.5 data-[state=active]:shadow-md">
                 <Globe size={14} />
                 Web
@@ -188,6 +269,14 @@ function App() {
               <TabsTrigger value="lists" className="text-xs gap-1.5 data-[state=active]:shadow-md">
                 <List size={14} />
                 Lists
+              </TabsTrigger>
+              <TabsTrigger value="upload" className="text-xs gap-1.5 data-[state=active]:shadow-md">
+                <FileText size={14} />
+                CSV
+              </TabsTrigger>
+              <TabsTrigger value="text" className="text-xs gap-1.5 data-[state=active]:shadow-md">
+                <PenLine size={14} />
+                Text
               </TabsTrigger>
             </TabsList>
           </div>
@@ -222,8 +311,6 @@ function App() {
                   onParsedSymbols={handleParsedSymbols}
                   isLoading={isLoading}
                   error={error}
-                  lists={symbolLists}
-                  currentList={currentList}
                 />
               </div>
             </TabsContent>
@@ -241,7 +328,7 @@ function App() {
                   />
 
                   {/* Show symbols when a list is selected */}
-                  {currentList && currentList.symbols.length > 0 && (
+                  {currentList && (
                     <Card>
                       <CardHeader>
                         <CardTitle className="text-base">📊 {currentList.name} Symbols</CardTitle>
@@ -271,7 +358,7 @@ function App() {
         </Tabs>
 
         {/* Current List Display - Fixed at bottom */}
-        {currentList && currentList.symbols.length > 0 && (
+        {currentList && (
           <div className="border-t border-border/50 bg-background-card/50">
             <div className="p-3">
               <div className="flex items-center justify-between mb-2">
@@ -308,7 +395,7 @@ function App() {
       <div className="flex-shrink-0 px-4 py-2.5 border-t border-border/30 bg-background-muted/50">
         <div className="flex items-center justify-center gap-2 text-xs text-foreground-muted">
           <ExternalLink size={12} />
-          <span>Click any symbol to open on TradingView</span>
+          <span>Made with ❤️ by TradeFlow</span>
         </div>
       </div>
     </div>

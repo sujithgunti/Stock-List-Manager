@@ -7,14 +7,17 @@ export default defineConfig({
     name: 'TradeFlow',
     description: 'TradeFlow - The ultimate stock symbol manager for TradingView with CSV upload and smart web extraction',
     version: '1.0.0',
+    permissions: ['storage', 'scripting', 'activeTab', 'identity'],
+
+    // web_accessible_resources removed (no longer using sandbox)
+
     action: {
       default_title: 'TradeFlow'
     },
-    // Permissions:
-    // - storage: For saving symbol lists
-    // - scripting: For chrome.scripting.executeScript (website extraction)
-    // - activeTab: Grants access to current tab when user clicks extension (privacy-friendly)
-    permissions: ['storage', 'scripting', 'activeTab'],
+    // Host permissions:
+    // - TradingView: For auto-injecting floating widget
+    // - Screener.in: Required for background tab creation and script injection during symbol extraction
+    // - ChartInk.com: For ChartInk screener extraction
     // Host permissions:
     // - TradingView: For auto-injecting floating widget
     // - Screener.in: Required for background tab creation and script injection during symbol extraction

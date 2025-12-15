@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import { Input } from './ui/input';
 import { WebsiteExtractorProps, StockSymbol } from '../types/index';
 import { parseTextInput } from '../utils/parser';
 import { detectSite } from '../scrapers/screener';
@@ -12,14 +13,12 @@ export function WebsiteExtractor({
   onParsedSymbols,
   isLoading: parentLoading,
   error: parentError,
-  lists,
-  currentList
 }: WebsiteExtractorProps) {
   const [siteInfo, setSiteInfo] = useState<SiteDetection | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractedSymbols, setExtractedSymbols] = useState<StockSymbol[]>([]);
   const [symbolString, setSymbolString] = useState('');
-  const [selectedListId, setSelectedListId] = useState<string>('');
+  const [listName, setListName] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
 
@@ -28,21 +27,23 @@ export function WebsiteExtractor({
     detectCurrentSite();
   }, []);
 
-  // Set default selected list
-  useEffect(() => {
-    if (currentList && !selectedListId) {
-      setSelectedListId(currentList.id);
-    } else if (lists.length > 0 && !selectedListId) {
-      setSelectedListId(lists[0].id);
-    }
-  }, [currentList, lists, selectedListId]);
-
   const detectCurrentSite = async () => {
     try {
       const tabs = await (globalThis as any).chrome.tabs.query({ active: true, currentWindow: true });
       if (tabs.length > 0 && tabs[0].url) {
         const detection = detectSite(tabs[0].url);
         setSiteInfo(detection);
+
+        // Auto-suggest list name based on site
+        if (detection.isSupported) {
+          const dateStr = new Date().toLocaleDateString();
+          if (detection.site === SupportedSite.SCREENER) {
+            setListName(`Screener.in - ${dateStr}`);
+          } else if (detection.site === SupportedSite.CHARTINK) {
+            setListName(`ChartInk - ${dateStr}`);
+          }
+        }
+
       } else {
         setSiteInfo({
           site: SupportedSite.UNKNOWN,
@@ -112,20 +113,14 @@ export function WebsiteExtractor({
     }
   };
 
-  const handleAddToList = () => {
+  const handleCreateList = () => {
     if (extractedSymbols.length === 0) {
       setError('No symbols to add');
       return;
     }
 
-    if (!selectedListId) {
-      setError('Please select a list');
-      return;
-    }
-
-    const selectedList = lists.find(list => list.id === selectedListId);
-    if (!selectedList) {
-      setError('Selected list not found');
+    if (!listName.trim()) {
+      setError('Please enter a list name');
       return;
     }
 
@@ -138,12 +133,12 @@ export function WebsiteExtractor({
     };
 
     // Call the parent handler with the list name
-    onParsedSymbols(parseResult, selectedList.name);
+    onParsedSymbols(parseResult, listName.trim());
 
     // Clear the extracted symbols
     setExtractedSymbols([]);
     setSymbolString('');
-    setSuccess(`Added ${extractedSymbols.length} symbols to ${selectedList.name}`);
+    setSuccess(`Created list "${listName}" with ${extractedSymbols.length} symbols`);
   };
 
   const getSiteIcon = (site: SupportedSite) => {
@@ -175,9 +170,8 @@ export function WebsiteExtractor({
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                siteInfo.isSupported ? 'bg-success/15' : 'bg-background-muted'
-              }`}>
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${siteInfo.isSupported ? 'bg-success/15' : 'bg-background-muted'
+                }`}>
                 {getSiteIcon(siteInfo.site)}
               </div>
               <div>
@@ -302,33 +296,26 @@ export function WebsiteExtractor({
                 ))}
               </div>
 
-              {/* List Selection */}
+              {/* List Name Input */}
               <div className="space-y-2">
-                <label className="text-xs font-medium text-foreground">
-                  Add to List
-                </label>
-                <select
-                  value={selectedListId}
-                  onChange={(e) => setSelectedListId(e.target.value)}
-                  className="w-full h-10 rounded-lg bg-background-muted/50 border border-border/60 text-foreground text-sm px-3 focus:outline-none focus:ring-2 focus:ring-primary-500/50 transition-all duration-200"
-                >
-                  {lists.map((list) => (
-                    <option key={list.id} value={list.id}>
-                      {list.name} ({list.symbols.length} symbols)
-                    </option>
-                  ))}
-                </select>
+                <label className="text-xs font-medium text-foreground">List Name</label>
+                <Input
+                  value={listName}
+                  onChange={(e) => setListName(e.target.value)}
+                  placeholder="Enter list name..."
+                  className="bg-background"
+                />
               </div>
 
-              {/* Add to List Button */}
+              {/* Create List Button */}
               <Button
-                onClick={handleAddToList}
-                disabled={!selectedListId || parentLoading}
+                onClick={handleCreateList}
+                disabled={!listName.trim() || parentLoading}
                 className="w-full btn-glow"
                 size="lg"
               >
                 <Plus size={14} />
-                Add {extractedSymbols.length} symbols to {lists.find(l => l.id === selectedListId)?.name || 'list'}
+                Create List with {extractedSymbols.length} symbols
               </Button>
             </div>
           </CardContent>

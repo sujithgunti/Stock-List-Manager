@@ -8,9 +8,12 @@ import {
   ParseResult,
   ListReference,
   AVAILABLE_COLORS,
-  PREDEFINED_LISTS
+  PREDEFINED_LISTS,
+  AuthUser
 } from '../types/index'
 import { chromeExtensionStorage } from './storage'
+import { getFirebaseAuth } from '../lib/firebase'
+import { getIdToken } from 'firebase/auth'
 
 // Helper function to generate unique IDs
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2)
@@ -33,30 +36,30 @@ export const activeTabAtom = atom<'upload' | 'text' | 'lists'>('upload')
 
 export const textInputAtom = atom<string>('')
 
+// Auth atoms
+export const authUserAtom = atomWithStorage<AuthUser | null>('authUser', null, chromeExtensionStorage)
+export const authLoadingAtom = atom<boolean>(false)
+export const authErrorAtom = atom<string>('')
+
 // Derived atoms
-export const currentListAtom = atom<SymbolList | null>(
-  async (get) => {
-    const currentListId = await get(currentListIdAtom)
-    const allLists = await get(symbolListsAtom)
-    const actualLists = Array.isArray(allLists) ? allLists : []
-    return currentListId ? actualLists.find((list: SymbolList) => list.id === currentListId) || null : null
-  }
-)
+// Note: keep derived atoms synchronous to satisfy TypeScript typing (avoid async getters).
+export const currentListAtom = atom<SymbolList | null>((get) => {
+  const currentListId = get(currentListIdAtom)
+  const allLists = get(symbolListsAtom)
+  const actualLists = Array.isArray(allLists) ? allLists : []
+  return currentListId ? actualLists.find((list: SymbolList) => list.id === currentListId) || null : null
+})
 
-export const allListsCountAtom = atom(
-  async (get) => {
-    const allLists = await get(symbolListsAtom)
-    const actualLists = Array.isArray(allLists) ? allLists : []
-    return actualLists.length
-  }
-)
+export const allListsCountAtom = atom((get) => {
+  const allLists = get(symbolListsAtom)
+  const actualLists = Array.isArray(allLists) ? allLists : []
+  return actualLists.length
+})
 
-export const currentListSymbolCountAtom = atom(
-  async (get) => {
-    const currentList = await get(currentListAtom)
-    return currentList ? currentList.symbols.length : 0
-  }
-)
+export const currentListSymbolCountAtom = atom((get) => {
+  const currentList = get(currentListAtom)
+  return currentList ? currentList.symbols.length : 0
+})
 
 // Action atoms for complex operations
 export const createListAtom = atom(
@@ -237,13 +240,8 @@ export const handleParsedSymbolsAtom = atom(
     try {
       const newList = await set(createListAtom, { name: customListName, symbols: result.symbols })
 
-      // Show success message
+      // Success message is handled locally by components to avoid duplication
       set(errorAtom, '') // Clear any previous errors
-      if (result.errors.length > 0) {
-        set(successMessageAtom, `Created "${customListName}" with ${result.symbols.length} symbols and ${result.errors.length} errors`)
-      } else {
-        set(successMessageAtom, `Successfully created "${customListName}" with ${result.symbols.length} symbols`)
-      }
 
       return newList
     } catch (error) {
@@ -263,6 +261,66 @@ export const autoDisimissSuccessAtom = atom(
       setTimeout(() => {
         set(successMessageAtom, '')
       }, 5000)
+    }
+  }
+)
+
+// Authentication actions
+export const signInWithGoogleAtom = atom(
+  null,
+  async (_get, set) => {
+    try {
+      set(authLoadingAtom, true)
+      set(authErrorAtom, '')
+
+      // Send message to background to handle auth
+      await (globalThis as any).chrome.runtime.sendMessage({
+        type: 'AUTH_START',
+        config: {
+          apiKey: import.meta.env.WXT_FIREBASE_API_KEY,
+          authDomain: import.meta.env.WXT_FIREBASE_AUTH_DOMAIN,
+          projectId: import.meta.env.WXT_FIREBASE_PROJECT_ID,
+          appId: import.meta.env.WXT_FIREBASE_APP_ID,
+          messagingSenderId: import.meta.env.WXT_FIREBASE_MESSAGING_SENDER_ID,
+          storageBucket: import.meta.env.WXT_FIREBASE_STORAGE_BUCKET,
+        }
+      });
+
+      // Note: AUTH_SUCCESS will be handled by a message listener
+      // We need to set up that listener if it's not already globally handled.
+      // However, usually atoms are just state holders.
+      // The listener should be in a useEffect or global handler.
+      // But since we are inside an atom action, we rely on the global connection or another mechanism.
+      // Wait, 'authUserAtom' is stored in storage.
+      // Only 'authErrorAtom' needs update.
+      // The background/offscreen will update storage?
+      // No, offscreen sends 'AUTH_SUCCESS' back.
+      // We need to listen to it.
+
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to sign in'
+      set(authErrorAtom, message)
+      set(authLoadingAtom, false)
+    }
+  }
+)
+
+export const signOutAtom = atom(
+  null,
+  async (_get, set) => {
+    try {
+      set(authLoadingAtom, true)
+      set(authErrorAtom, '')
+
+      await (globalThis as any).chrome.runtime.sendMessage({ type: 'AUTH_SIGNOUT' });
+
+      set(authUserAtom, null)
+      set(successMessageAtom, 'Signed out')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to sign out'
+      set(authErrorAtom, message)
+    } finally {
+      set(authLoadingAtom, false)
     }
   }
 )
