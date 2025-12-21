@@ -92,7 +92,13 @@ export default defineBackground(() => {
     if (message.type === 'AUTH_SUCCESS') {
       console.log('✅ Auth Success:', message.user.email);
       // Save user to storage (synced with popup atoms)
-      chrome.storage.local.set({ authUser: message.user });
+      // IMPORTANT: Include idToken for SDK re-authentication
+      const userWithToken = {
+        ...message.user,
+        idToken: message.idToken,
+        googleIdToken: message.googleIdToken
+      };
+      chrome.storage.local.set({ authUser: userWithToken });
 
       // Close the auth tab
       if (authTabId) {
@@ -102,6 +108,42 @@ export default defineBackground(() => {
         }, 1500); // Small delay to let user see "Connected" message
       }
       return true;
+    }
+
+    // Handle Cloud Sync from Content Script (Floating Widget)
+    if (message.type === 'SYNC_LIST_UPDATE') {
+      const { listId } = message;
+      console.log('🔄 background received SYNC_LIST_UPDATE for list:', listId);
+
+      // Read authUser and symbolLists from storage
+      chrome.storage.local.get(['authUser', 'symbolLists']).then(async (result: any) => {
+        const authUser = result.authUser;
+        let lists = [];
+
+        // Parse lists safely
+        if (result.symbolLists) {
+          if (typeof result.symbolLists === 'string') {
+            try { lists = JSON.parse(result.symbolLists); } catch (e) { lists = []; }
+          } else {
+            lists = result.symbolLists;
+          }
+        }
+
+        if (authUser?.uid && lists.length > 0) {
+          const listToSync = lists.find((l: any) => l.id === listId);
+          if (listToSync) {
+            // Import dynamically to ensure cleaner context or use static import if top-level works
+            // Since we are in module context, static import is fine but we didn't add it at top.
+            // Let's add top-level imports in next logical step or try dynamic import here?
+            // Background script in WXT is a module.
+            const { saveListToFirestore } = await import('./popup/lib/firestore-utils');
+            await saveListToFirestore(authUser.uid, listToSync);
+            console.log('✅ Background synced list to cloud:', listToSync.name);
+          }
+        }
+      }).catch((err: any) => console.error('Background sync failed:', err));
+
+      return false; // No response needed
     }
 
     // Handle legacy operations

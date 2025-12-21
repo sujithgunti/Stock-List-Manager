@@ -81,6 +81,7 @@ export interface AuthUser {
   email?: string | null;
   photoURL?: string | null;
   idToken?: string;
+  googleIdToken?: string;
 }
 
 // Component prop types

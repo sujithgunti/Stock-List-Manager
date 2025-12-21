@@ -34,6 +34,8 @@ import {
 } from './index'
 import { SymbolList, StockSymbol, AppSettings, ParseResult, ListReference, AuthUser } from '../types/index'
 import React from 'react'
+import { getFirebaseAuth } from '../lib/firebase'
+import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth'
 
 // Symbol Lists Management
 export const useSymbolLists = () => {
@@ -109,15 +111,27 @@ export const useAuth = () => {
   // Listen for auth results from sandbox window via postMessage
   React.useEffect(() => {
     if (authStatusBound) return
-    const handler = (event: MessageEvent) => {
+    const handler = async (event: MessageEvent) => {
       const msg: any = event.data
       if (msg?.type === 'AUTH_SUCCESS') {
+        // 1. Authenticate the local Firebase SDK (Critical for Firestore Rules)
+        try {
+          const auth = getFirebaseAuth();
+          // Use Google ID Token (not Firebase Token) for credential
+          const credential = GoogleAuthProvider.credential(msg.googleIdToken);
+          await signInWithCredential(auth, credential);
+          console.log("✅ Firebase SDK Signed In (Popup Context)");
+        } catch (e) {
+          console.error("❌ Failed to sign in Firebase SDK:", e);
+        }
+
         setUser({
           uid: msg.user.uid,
           displayName: msg.user.displayName,
           email: msg.user.email,
           photoURL: msg.user.photoURL,
           idToken: msg.idToken,
+          googleIdToken: msg.googleIdToken, // Save for future re-auth
         })
         setError('')
       } else if (msg?.type === 'AUTH_ERROR') {
@@ -285,3 +299,5 @@ export const useInitializePredefinedLists = () => {
 export const useMigrateToEnhancedSchema = () => {
   return useSetAtom(migrateToEnhancedSchemaAtom)
 }
+
+export { useFirestoreSync } from './sync';

@@ -14,6 +14,7 @@ import {
 import { chromeExtensionStorage } from './storage'
 import { getFirebaseAuth } from '../lib/firebase'
 import { getIdToken } from 'firebase/auth'
+import { saveListToFirestore, deleteListFromFirestore } from '../lib/firestore-utils'
 
 // Helper function to generate unique IDs
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2)
@@ -109,6 +110,12 @@ export const createListAtom = atom(
       set(symbolListsAtom, updatedLists)
       set(currentListIdAtom, newList.id)
 
+      // Sync to Cloud
+      const authUser = await get(authUserAtom)
+      if (authUser?.uid) {
+        saveListToFirestore(authUser.uid, newList).catch(console.error)
+      }
+
       return newList
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to create list'
@@ -176,6 +183,13 @@ export const deleteListAtom = atom(
         set(currentListIdAtom, null)
       }
 
+      // Sync to Cloud
+      const authUser = await get(authUserAtom)
+      if (authUser?.uid) {
+        deleteListFromFirestore(authUser.uid, listId).catch(console.error)
+      }
+
+
       return true
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to delete list'
@@ -217,6 +231,12 @@ export const removeSymbolFromListAtom = atom(
       updatedLists[listIndex] = updatedList
 
       set(symbolListsAtom, updatedLists)
+
+      // Sync to Cloud
+      const authUser = await get(authUserAtom)
+      if (authUser?.uid) {
+        saveListToFirestore(authUser.uid, updatedList).catch(console.error)
+      }
 
       return updatedList
     } catch (error) {
@@ -411,6 +431,17 @@ export const toggleListFavoriteAtom = atom(
       )
 
       set(symbolListsAtom, updatedLists)
+
+      // Sync to Cloud
+      const authUser = await get(authUserAtom)
+      if (authUser?.uid) {
+        // Find the specific updated list to save bandwidth
+        const updatedList = updatedLists.find(l => l.id === listId)
+        if (updatedList) {
+          saveListToFirestore(authUser.uid, updatedList).catch(console.error)
+        }
+      }
+
       set(successMessageAtom, 'List favorite status updated')
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to toggle favorite'
@@ -473,6 +504,16 @@ export const moveSymbolAtom = atom(
       })
 
       set(symbolListsAtom, updatedLists)
+
+      // Sync to Cloud
+      const authUser = await get(authUserAtom)
+      if (authUser?.uid) {
+        const fromList = updatedLists.find(l => l.id === fromListId)
+        const toList = updatedLists.find(l => l.id === toListId)
+        if (fromList) saveListToFirestore(authUser.uid, fromList).catch(console.error)
+        if (toList) saveListToFirestore(authUser.uid, toList).catch(console.error)
+      }
+
       set(successMessageAtom, `Moved ${symbol.symbol} successfully`)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to move symbol'
@@ -527,6 +568,14 @@ export const copySymbolAtom = atom(
       })
 
       set(symbolListsAtom, updatedLists)
+
+      // Sync to Cloud
+      const authUser = await get(authUserAtom)
+      if (authUser?.uid) {
+        const toList = updatedLists.find(l => l.id === toListId)
+        if (toList) saveListToFirestore(authUser.uid, toList).catch(console.error)
+      }
+
       set(successMessageAtom, `Copied ${symbol.symbol} successfully`)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to copy symbol'

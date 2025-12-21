@@ -104,6 +104,7 @@ async function performAuth(config: any) {
         photoURL: cred.user.photoURL,
       },
       idToken: firebaseIdToken,
+      googleIdToken: idToken, // Valid Google OIDC Token for re-auth
     });
 
     document.body.innerHTML = `

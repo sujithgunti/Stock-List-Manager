@@ -1,4 +1,6 @@
 import React, { useEffect } from 'react';
+import { getFirebaseAuth } from './lib/firebase';
+import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import { FileUpload } from './components/FileUpload';
 import { TextInput } from './components/TextInput';
 import { WebsiteExtractor } from './components/WebsiteExtractor';
@@ -30,7 +32,8 @@ import {
   useSymbolOccurrences,
   useCopySymbol,
   useEnhancedListManager,
-  useAuth
+  useAuth,
+  useFirestoreSync
 } from './atoms/hooks';
 import './App.css';
 
@@ -40,6 +43,9 @@ function App() {
   const [textInput, setTextInput] = useTextInput();
   const { successMessage, clearSuccess } = useSuccessMessage();
   const migrateSchema = useMigrateToEnhancedSchema();
+
+  // Phase 8: Firestore Sync
+  useFirestoreSync();
 
   const {
     symbolLists,
@@ -98,6 +104,31 @@ function App() {
     };
     checkStorage();
   }, []);
+
+  // Re-authenticate Firebase SDK if we have a stored user
+  useEffect(() => {
+    const reAuth = async () => {
+      // Debug logs
+      console.log("🔍 Re-Auth Check:", {
+        hasToken: !!authUser?.idToken,
+        currentUser: !!getFirebaseAuth().currentUser
+      });
+
+      if (authUser?.googleIdToken) {
+        const auth = getFirebaseAuth();
+        if (!auth.currentUser) {
+          console.log("🔄 Attempting Re-auth with Google Token...");
+          try {
+            await signInWithCredential(auth, GoogleAuthProvider.credential(authUser.googleIdToken));
+            console.log("✅ SDK Re-authenticated");
+          } catch (e) {
+            console.warn("⚠️ SDK Re-auth failed:", e);
+          }
+        }
+      }
+    };
+    reAuth();
+  }, [authUser]); // Run whenever authUser is set
 
   // Wrapper functions for SymbolList component
   const handleCopySymbol = async (symbol: StockSymbol, toListId: string) => {

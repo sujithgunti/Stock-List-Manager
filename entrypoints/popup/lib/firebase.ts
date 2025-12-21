@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider } from 'firebase/auth'
+import { getFirestore } from 'firebase/firestore'
 
 /**
  * Firebase client singleton for the extension popup/content contexts.
@@ -33,6 +34,12 @@ export function getFirebaseApp() {
 export function getFirebaseAuth() {
   const app = getFirebaseApp()
   return getAuth(app)
+}
+
+
+export function getFirebaseDb() {
+  const app = getFirebaseApp()
+  return getFirestore(app)
 }
 
 export const googleProvider = new GoogleAuthProvider()
