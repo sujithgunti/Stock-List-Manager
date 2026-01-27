@@ -14,6 +14,9 @@ export const ListManager: React.FC<ListManagerProps> = ({
   onListRename,
   onListDelete
 }) => {
+  // Ensure lists is always an array
+  const safeLists = Array.isArray(lists) ? lists : [];
+
   const [isCreating, setIsCreating] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
   const [newListName, setNewListName] = useState('');
@@ -287,19 +290,15 @@ export const ListManager: React.FC<ListManagerProps> = ({
               {lists.map(list => (
                 <div
                   key={list.id}
-                  className={`p-2.5 rounded-lg border cursor-pointer transition-all duration-150 hover:bg-background-muted/50 ${
-                    currentList?.id === list.id
-                      ? 'border-primary-500/50 bg-primary-500/10'
-                      : 'border-border/30 hover:border-border/60'
-                  }`}
+                  className={`p-2.5 rounded-lg border cursor-pointer transition-all duration-150 hover:bg-background-muted/50 ${currentList?.id === list.id
+                    ? 'border-primary-500/50 bg-primary-500/10'
+                    : 'border-border/30 hover:border-border/60'
+                    }`}
                   onClick={() => onListSelect(list)}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <div
-                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: list.color || '#2962FF' }}
-                      ></div>
+
                       <div className="min-w-0 flex-1">
                         <div className="font-medium text-sm text-foreground truncate">
                           {list.name}

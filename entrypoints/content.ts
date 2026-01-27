@@ -7,8 +7,6 @@ export default defineContentScript({
   matches: ['*://*.tradingview.com/*', '*://in.tradingview.com/*'],
 
   main(ctx) {
-    console.log('🚀 TradingView Symbol Manager - Content script loaded on:', window.location.href);
-
     // Enhanced TradingView page detection
     const isTradingViewPage =
       window.location.hostname.includes('tradingview.com') ||
@@ -19,11 +17,8 @@ export default defineContentScript({
       document.title.includes('TradingView');
 
     if (!isTradingViewPage) {
-      console.log('❌ Not a TradingView page, skipping widget initialization');
       return;
     }
-
-    console.log('✅ TradingView page detected, initializing widget...');
 
     let isWidgetVisible = false;
     let widget: HTMLElement | null = null;
@@ -83,13 +78,9 @@ export default defineContentScript({
     }
 
     function toggleWidget() {
-      console.log('🔄 toggleWidget called, isWidgetVisible:', isWidgetVisible);
-
       if (isWidgetVisible) {
-        console.log('🔽 Hiding widget...');
         hideWidget();
       } else {
-        console.log('🔼 Showing widget...');
         showWidget();
       }
     }
@@ -109,7 +100,6 @@ export default defineContentScript({
         });
         isWidgetVisible = true;
         saveWidgetState();
-        console.log('✅ Widget is now visible');
       } else {
         console.error('❌ Cannot show widget - widget element not found');
       }
@@ -129,7 +119,6 @@ export default defineContentScript({
         }, 200);
         isWidgetVisible = false;
         saveWidgetState();
-        console.log('✅ Widget is now hidden');
       }
     }
 
@@ -163,9 +152,9 @@ export default defineContentScript({
         widgetRoot.render(element);
         console.log('✅ renderWidget: React component rendered successfully');
 
-      } catch (error) {
+      } catch (error: any) {
         console.error('❌ renderWidget: Error rendering React component:', error);
-        console.error('❌ Stack trace:', error.stack);
+        console.error('❌ Stack trace:', error?.stack);
 
         // Fallback: render a simple error message
         try {
@@ -185,8 +174,7 @@ export default defineContentScript({
           );
 
           widgetRoot.render(errorElement);
-          console.log('⚠️ renderWidget: Error message rendered');
-        } catch (fallbackError) {
+        } catch (fallbackError: any) {
           console.error('❌ renderWidget: Even error rendering failed:', fallbackError);
         }
       }
@@ -233,9 +221,9 @@ export default defineContentScript({
 
         console.log('✅ Widget initialized successfully');
 
-      } catch (error) {
+      } catch (error: any) {
         console.error('❌ Failed to initialize widget:', error);
-        console.error('❌ Stack trace:', error.stack);
+        console.error('❌ Stack trace:', error?.stack);
       }
     }
 
@@ -299,6 +287,7 @@ export default defineContentScript({
     }
 
     function addKeyboardShortcuts() {
+      // @ts-ignore - wxt context listener signature
       ctx.addEventListener('keydown', (e: KeyboardEvent) => {
         if (e.ctrlKey && e.shiftKey && e.key === 'S') {
           e.preventDefault();
@@ -599,6 +588,15 @@ export default defineContentScript({
           ring: 1px solid var(--primary-500);
           border-color: var(--primary-500);
         }
+
+        /* Specific utilities for highlighting (Tailwind-like) */
+        .bg-primary-500\\/10 { background-color: rgba(41, 98, 255, 0.1); }
+        .bg-primary-500\\/20 { background-color: rgba(41, 98, 255, 0.2); }
+        .border-primary-500\\/50 { border-color: rgba(41, 98, 255, 0.5); }
+        .border-transparent { border-color: transparent; }
+        .hover\\:bg-background-muted\\/80:hover { background-color: rgba(19, 23, 34, 0.8); }
+        .hover\\:border-border\\/30:hover { border-color: rgba(54, 58, 69, 0.3); }
+        .text-primary-400 { color: var(--primary-400); }
 
         /* Hover effects for symbol rows */
         .hover\\:bg-accent:hover {

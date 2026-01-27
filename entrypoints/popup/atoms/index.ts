@@ -1,5 +1,5 @@
 import { atom } from 'jotai'
-import { atomWithStorage } from 'jotai/utils'
+// atomWithStorage removed as per user request
 import {
   SymbolList,
   StockSymbol,
@@ -11,7 +11,6 @@ import {
   PREDEFINED_LISTS,
   AuthUser
 } from '../types/index'
-import { chromeExtensionStorage } from './storage'
 import { getFirebaseAuth } from '../lib/firebase'
 import { getIdToken } from 'firebase/auth'
 import { saveListToFirestore, deleteListFromFirestore } from '../lib/firestore-utils'
@@ -19,26 +18,20 @@ import { saveListToFirestore, deleteListFromFirestore } from '../lib/firestore-u
 // Helper function to generate unique IDs
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2)
 
-// Storage atoms with Chrome Extension Storage API integration
-export const symbolListsAtom = atomWithStorage<SymbolList[]>('symbolLists', [], chromeExtensionStorage)
+// Standard atoms to replace atomWithStorage
+// We will manually hydrate these in a custom hook
+export const symbolListsAtom = atom<SymbolList[]>([])
+export const currentListIdAtom = atom<string | null>(null)
+export const settingsAtom = atom<AppSettings>(DEFAULT_SETTINGS)
+export const authUserAtom = atom<AuthUser | null>(null)
 
-export const currentListIdAtom = atomWithStorage<string | null>('currentListId', null, chromeExtensionStorage)
-
-export const settingsAtom = atomWithStorage<AppSettings>('settings', DEFAULT_SETTINGS, chromeExtensionStorage)
-
-// UI State atoms
 export const isLoadingAtom = atom<boolean>(false)
-
 export const errorAtom = atom<string>('')
-
 export const successMessageAtom = atom<string>('')
 
 export const activeTabAtom = atom<'upload' | 'text' | 'lists'>('upload')
-
 export const textInputAtom = atom<string>('')
 
-// Auth atoms
-export const authUserAtom = atomWithStorage<AuthUser | null>('authUser', null, chromeExtensionStorage)
 export const authLoadingAtom = atom<boolean>(false)
 export const authErrorAtom = atom<string>('')
 
@@ -112,7 +105,7 @@ export const createListAtom = atom(
 
       // Sync to Cloud
       const authUser = await get(authUserAtom)
-      if (authUser?.uid) {
+      if (authUser?.uid && authUser.isPremium) {
         saveListToFirestore(authUser.uid, newList).catch(console.error)
       }
 
@@ -185,7 +178,7 @@ export const deleteListAtom = atom(
 
       // Sync to Cloud
       const authUser = await get(authUserAtom)
-      if (authUser?.uid) {
+      if (authUser?.uid && authUser.isPremium) {
         deleteListFromFirestore(authUser.uid, listId).catch(console.error)
       }
 
@@ -234,7 +227,7 @@ export const removeSymbolFromListAtom = atom(
 
       // Sync to Cloud
       const authUser = await get(authUserAtom)
-      if (authUser?.uid) {
+      if (authUser?.uid && authUser.isPremium) {
         saveListToFirestore(authUser.uid, updatedList).catch(console.error)
       }
 
@@ -335,6 +328,7 @@ export const signOutAtom = atom(
       await (globalThis as any).chrome.runtime.sendMessage({ type: 'AUTH_SIGNOUT' });
 
       set(authUserAtom, null)
+      set(currentListIdAtom, null)
       set(successMessageAtom, 'Signed out')
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to sign out'
@@ -434,7 +428,7 @@ export const toggleListFavoriteAtom = atom(
 
       // Sync to Cloud
       const authUser = await get(authUserAtom)
-      if (authUser?.uid) {
+      if (authUser?.uid && authUser.isPremium) {
         // Find the specific updated list to save bandwidth
         const updatedList = updatedLists.find(l => l.id === listId)
         if (updatedList) {
@@ -507,7 +501,7 @@ export const moveSymbolAtom = atom(
 
       // Sync to Cloud
       const authUser = await get(authUserAtom)
-      if (authUser?.uid) {
+      if (authUser?.uid && authUser.isPremium) {
         const fromList = updatedLists.find(l => l.id === fromListId)
         const toList = updatedLists.find(l => l.id === toListId)
         if (fromList) saveListToFirestore(authUser.uid, fromList).catch(console.error)
@@ -571,7 +565,7 @@ export const copySymbolAtom = atom(
 
       // Sync to Cloud
       const authUser = await get(authUserAtom)
-      if (authUser?.uid) {
+      if (authUser?.uid && authUser.isPremium) {
         const toList = updatedLists.find(l => l.id === toListId)
         if (toList) saveListToFirestore(authUser.uid, toList).catch(console.error)
       }

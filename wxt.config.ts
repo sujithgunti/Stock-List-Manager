@@ -4,15 +4,15 @@ import { defineConfig } from 'wxt';
 export default defineConfig({
   modules: ['@wxt-dev/module-react'],
   manifest: {
-    name: 'TradeFlow',
+    name: 'TradeFlow (Screener to TradingView)',
     description: 'TradeFlow - The ultimate stock symbol manager for TradingView with CSV upload and smart web extraction',
     version: '1.0.0',
-    permissions: ['storage', 'scripting', 'activeTab', 'identity'],
+    permissions: ['storage', 'scripting', 'activeTab', 'identity', 'unlimitedStorage'],
 
     // web_accessible_resources removed (no longer using sandbox)
 
     action: {
-      default_title: 'TradeFlow'
+      default_title: 'TradeFlow (Screener to TradingView)'
     },
     // Host permissions:
     // - TradingView: For auto-injecting floating widget

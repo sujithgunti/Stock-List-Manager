@@ -300,4 +300,4 @@ export const useMigrateToEnhancedSchema = () => {
   return useSetAtom(migrateToEnhancedSchemaAtom)
 }
 
-export { useFirestoreSync } from './sync';
+export { useUserProfileSync, useDataSync } from './sync';

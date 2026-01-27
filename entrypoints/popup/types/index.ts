@@ -82,6 +82,8 @@ export interface AuthUser {
   photoURL?: string | null;
   idToken?: string;
   googleIdToken?: string;
+  isPremium?: boolean;
+  trialStartDate?: number;
 }
 
 // Component prop types

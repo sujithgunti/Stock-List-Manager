@@ -30,6 +30,7 @@ export const createChromeExtensionStorage = () => {
 
     setItem: async (key: string, value: string) => {
       try {
+        console.log('Storage: setItem called for', key, value);
         if (isExtensionContext) {
           // Use Chrome Extension Storage API
           await globalThis.chrome.storage.local.set({ [key]: value })
@@ -63,6 +64,7 @@ export const createChromeExtensionStorage = () => {
       if (isExtensionContext) {
         const listener = (changes: { [key: string]: any }, namespace: string) => {
           if (namespace === 'local' && changes[key]) {
+            console.log('Storage: onChanged fired for', key, changes[key].newValue);
             callback(changes[key].newValue)
           }
         }

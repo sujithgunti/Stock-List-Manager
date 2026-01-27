@@ -9,6 +9,8 @@ import { ListManager } from './components/ListManager';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card';
 import { LoginScreen } from './components/LoginScreen';
+import { TrialExpiredScreen } from './components/TrialExpiredScreen';
+import { PricingOverlay } from './components/PricingOverlay';
 import {
   TrendingUp,
   CheckCircle2,
@@ -33,19 +35,29 @@ import {
   useCopySymbol,
   useEnhancedListManager,
   useAuth,
-  useFirestoreSync
+  useUserProfileSync,
+  useDataSync
 } from './atoms/hooks';
+import { Loader2, Crown } from 'lucide-react';
 import './App.css';
 
+import { useStorageSync } from './atoms/useStorageSync';
+
 function App() {
+  // Manual Storage Sync
+  const isHydrated = useStorageSync();
+
   // Jotai state management
   const [activeTab, setActiveTab] = useActiveTab();
   const [textInput, setTextInput] = useTextInput();
   const { successMessage, clearSuccess } = useSuccessMessage();
   const migrateSchema = useMigrateToEnhancedSchema();
 
-  // Phase 8: Firestore Sync
-  useFirestoreSync();
+  // Phase 8: Firebase Sync (Freemium Split)
+  useUserProfileSync();
+  useDataSync();
+
+
 
   const {
     symbolLists,
@@ -61,6 +73,17 @@ function App() {
     clearError
   } = useSymbolListManager();
 
+  // Debug Logging
+  useEffect(() => {
+    console.log('App Debug: symbolLists count:', symbolLists?.length);
+    console.log('App Debug: currentListId:', currentList?.id);
+    console.log('App Debug: currentList:', currentList);
+    if (currentList) {
+      console.log('App Debug: currentList symbols:', currentList.symbols?.length);
+      console.log('App Debug: currentList first symbol:', currentList.symbols?.[0]);
+    }
+  }, [symbolLists, currentList]);
+
   // Phase 7: Enhanced list management for multi-list support
   const symbolOccurrences = useSymbolOccurrences();
   const copySymbol = useCopySymbol();
@@ -73,6 +96,48 @@ function App() {
     clearError: clearAuthError,
     setAuthUser
   } = useAuth();
+
+  const [showPricing, setShowPricing] = React.useState(false);
+
+  // Freemium Trial Logic
+  const [isTrialExpired, setIsTrialExpired] = React.useState(false);
+  const [checkingTrial, setCheckingTrial] = React.useState(true);
+
+  useEffect(() => {
+    const checkTrialStatus = async () => {
+      try {
+        const result = await chrome.storage.local.get('installDate');
+        let installTimestamp = result.installDate;
+
+        if (!installTimestamp) {
+          // First run: save install date
+          installTimestamp = Date.now();
+          await chrome.storage.local.set({ installDate: installTimestamp });
+        }
+
+        // Calculate days used
+        const msPerDay = 1000 * 60 * 60 * 24;
+        const daysUsed = (Date.now() - installTimestamp) / msPerDay;
+
+        // If > 30 days and NOT premium, expire
+        if (daysUsed > 30) {
+          setIsTrialExpired(true);
+        }
+      } catch (e) {
+        console.error('Trial check failed:', e);
+      } finally {
+        setCheckingTrial(false);
+      }
+    };
+    checkTrialStatus();
+  }, []);
+
+  // Effect to Un-expire if user becomes Premium (via sync)
+  useEffect(() => {
+    if (authUser?.isPremium) {
+      setIsTrialExpired(false);
+    }
+  }, [authUser?.isPremium]);
 
   // Manual hydration check to ensure auth state is synced
   useEffect(() => {
@@ -117,10 +182,8 @@ function App() {
       if (authUser?.googleIdToken) {
         const auth = getFirebaseAuth();
         if (!auth.currentUser) {
-          console.log("🔄 Attempting Re-auth with Google Token...");
           try {
             await signInWithCredential(auth, GoogleAuthProvider.credential(authUser.googleIdToken));
-            console.log("✅ SDK Re-authenticated");
           } catch (e) {
             console.warn("⚠️ SDK Re-auth failed:", e);
           }
@@ -141,13 +204,15 @@ function App() {
 
   // Phase 7: Migrate to enhanced schema on app load
   useEffect(() => {
+    if (!isHydrated) return;
+
     const runMigration = async () => {
       try {
         const result = await migrateSchema();
         if (result.migrated) {
-          console.log('✅ Data migrated to enhanced schema with color lists');
+          // Migration success
         } else if (result.initialized) {
-          console.log('✅ Initialized predefined colored lists');
+          // Initialization success
         }
       } catch (error) {
         console.error('❌ Migration error:', error);
@@ -155,7 +220,7 @@ function App() {
     };
 
     runMigration();
-  }, [migrateSchema]);
+  }, [migrateSchema, isHydrated]);
 
   // Auto-dismiss success messages (handled automatically by Jotai atoms)
   useEffect(() => {
@@ -190,7 +255,13 @@ function App() {
   };
 
   const handleListSelect = (list: any) => {
-    setCurrentListId(list.id);
+    console.log('App: handleListSelect called for:', list.id, list.name);
+    try {
+      setCurrentListId(list.id);
+      console.log('App: setCurrentListId called with', list.id);
+    } catch (e) {
+      console.error('App: Error setting list ID', e);
+    }
     clearError();
   };
 
@@ -227,6 +298,11 @@ function App() {
     );
   }
 
+  // Freemium Blocking: If logged in but Trial Expired and NOT Premium
+  if (!authLoading && !checkingTrial && isTrialExpired && !authUser?.isPremium) {
+    return <TrialExpiredScreen />;
+  }
+
   return (
     <div className="w-full h-full flex flex-col bg-background">
       {/* Header */}
@@ -250,6 +326,17 @@ function App() {
             )}
             <div className="flex flex-col leading-tight">
               <span className="text-xs text-foreground">{authUser.displayName || 'User'}</span>
+
+              {!authUser.isPremium && (
+                <button
+                  className="text-[10px] bg-gradient-to-r from-amber-500 to-orange-500 text-white px-2 py-0.5 rounded-full font-medium shadow-sm hover:shadow-md transition-all flex items-center gap-1 mb-0.5 w-fit"
+                  onClick={() => setShowPricing(true)}
+                >
+                  <Crown size={10} />
+                  Upgrade
+                </button>
+              )}
+
               <button
                 className="text-[11px] text-primary-400 hover:text-primary-300 transition-colors text-right"
                 onClick={handleSignOut}
@@ -259,12 +346,12 @@ function App() {
               </button>
             </div>
           </div>
-          {currentList && (
+          {/* {currentList && (
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary-500/10 border border-primary-500/20">
-              <div className="w-2 h-2 rounded-full bg-primary-500"></div>
+
               <span className="text-xs font-medium text-primary-400">{currentList.symbols.length}</span>
             </div>
-          )}
+          )} */}
         </div>
       </div>
 
@@ -288,9 +375,14 @@ function App() {
         </div>
       )}
 
+      {/* PRICING OVERLAY */}
+      {showPricing && (
+        <PricingOverlay onClose={() => setShowPricing(false)} />
+      )}
+
       {/* Main Content */}
       <div className="flex-1 overflow-hidden">
-        <Tabs defaultValue="upload" className="h-full flex flex-col">
+        <Tabs value={activeTab} onValueChange={(val: any) => setActiveTab(val)} className="h-full flex flex-col">
           <div className="flex-shrink-0 px-4 pt-3">
             <TabsList className="grid w-full grid-cols-4 h-10 p-1 bg-background-muted rounded-lg">
               <TabsTrigger value="website" className="text-xs gap-1.5 data-[state=active]:shadow-md">
@@ -394,10 +486,7 @@ function App() {
             <div className="p-3">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <div
-                    className="w-2.5 h-2.5 rounded-full"
-                    style={{ backgroundColor: currentList.color || '#2962FF' }}
-                  ></div>
+
                   <h3 className="text-sm font-medium text-foreground">{currentList.name}</h3>
                 </div>
                 <span className="text-xs text-foreground-muted px-2 py-0.5 rounded-full bg-background-muted">

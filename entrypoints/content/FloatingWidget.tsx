@@ -438,7 +438,7 @@ export default function FloatingWidget({ onClose, onMinimize, onStateChange, ini
   const handleCopySymbol = useCallback(async (symbol: StockSymbol, toListId: string) => {
     try {
       // Load current lists from storage
-      const result = await globalThis.chrome.storage.local.get(['symbolLists']);
+      const result = await chrome.storage.local.get(['symbolLists']);
       let storedLists: SymbolList[] = [];
 
       if (result.symbolLists) {
@@ -466,10 +466,10 @@ export default function FloatingWidget({ onClose, onMinimize, onStateChange, ini
 
       // Save back to storage (Always as JSON string for atomWithStorage compatibility)
       const dataToStore = JSON.stringify(updatedLists);
-      await globalThis.chrome.storage.local.set({ symbolLists: dataToStore });
+      await chrome.storage.local.set({ symbolLists: dataToStore });
 
       // Send message to background to sync changes to Cloud
-      globalThis.chrome.runtime.sendMessage({ type: 'SYNC_LIST_UPDATE', listId: toListId });
+      chrome.runtime.sendMessage({ type: 'SYNC_LIST_UPDATE', listId: toListId });
 
       // Reload lists to reflect changes
       await loadSymbolLists();
@@ -482,7 +482,7 @@ export default function FloatingWidget({ onClose, onMinimize, onStateChange, ini
   const handleRemoveFromList = useCallback(async (listId: string, symbol: StockSymbol) => {
     try {
       // Load current lists from storage
-      const result = await globalThis.chrome.storage.local.get(['symbolLists']);
+      const result = await chrome.storage.local.get(['symbolLists']);
       let storedLists: SymbolList[] = [];
 
       if (result.symbolLists) {
@@ -507,10 +507,10 @@ export default function FloatingWidget({ onClose, onMinimize, onStateChange, ini
 
       // Save back to storage (Always as JSON string for atomWithStorage compatibility)
       const dataToStore = JSON.stringify(updatedLists);
-      await globalThis.chrome.storage.local.set({ symbolLists: dataToStore });
+      await chrome.storage.local.set({ symbolLists: dataToStore });
 
       // Send message to background to sync changes to Cloud
-      globalThis.chrome.runtime.sendMessage({ type: 'SYNC_LIST_UPDATE', listId: listId });
+      chrome.runtime.sendMessage({ type: 'SYNC_LIST_UPDATE', listId: listId });
 
       // Reload lists to reflect changes
       await loadSymbolLists();
@@ -570,11 +570,11 @@ export default function FloatingWidget({ onClose, onMinimize, onStateChange, ini
       }
     };
 
-    if (globalThis.chrome && globalThis.chrome.storage) {
-      globalThis.chrome.storage.onChanged.addListener(handleStorageChange);
+    if (chrome && chrome.storage) {
+      chrome.storage.onChanged.addListener(handleStorageChange);
 
       return () => {
-        globalThis.chrome.storage.onChanged.removeListener(handleStorageChange);
+        chrome.storage.onChanged.removeListener(handleStorageChange);
       };
     }
   }, []);
@@ -585,11 +585,11 @@ export default function FloatingWidget({ onClose, onMinimize, onStateChange, ini
       setError('');
 
       // Check if Chrome API is available
-      if (!globalThis.chrome || !globalThis.chrome.storage) {
+      if (!chrome || !chrome.storage) {
         throw new Error('Chrome extension APIs not available');
       }
 
-      const result = await globalThis.chrome.storage.local.get(['symbolLists', 'currentListId']);
+      const result = await chrome.storage.local.get(['symbolLists', 'currentListId']);
 
       // Parse data with compatibility for both Jotai JSON strings and raw objects
       let lists: SymbolList[] = [];
@@ -664,7 +664,7 @@ export default function FloatingWidget({ onClose, onMinimize, onStateChange, ini
         setSearchTerm(''); // Reset search when selecting a list
 
         // Update currentListId in storage
-        globalThis.chrome.storage.local.set({ currentListId: listId }).catch(console.error);
+        chrome.storage.local.set({ currentListId: listId }).catch(console.error);
       } else {
         setError('Failed to find list');
       }
@@ -757,6 +757,46 @@ export default function FloatingWidget({ onClose, onMinimize, onStateChange, ini
       </Button>
     </div>
   );
+
+  // Detect current symbol from URL
+  const [currentOpenedSymbol, setCurrentOpenedSymbol] = useState<string | null>(null);
+
+  useEffect(() => {
+    const detectSymbol = () => {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const symbolParam = urlParams.get('symbol');
+        if (symbolParam) {
+          // Param is usually "EXCHANGE:SYMBOL"
+          setCurrentOpenedSymbol(symbolParam);
+        } else {
+          // Fallback: try to grab from page title or other elements if needed
+          // For now, URL param is the most reliable for the extension's navigation flow
+          setCurrentOpenedSymbol(null);
+        }
+      } catch (e) {
+        console.error('Error detecting symbol:', e);
+      }
+    };
+
+    detectSymbol();
+    // Listen for URL changes if possible (though popstate might not trigger on query param change without navigation)
+    window.addEventListener('popstate', detectSymbol);
+    return () => window.removeEventListener('popstate', detectSymbol);
+  }, []);
+
+  // Ref for scrolling to active symbol
+  const activeSymbolRef = React.useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to active symbol when list changes or symbol is detected
+  useEffect(() => {
+    if (activeSymbolRef.current) {
+      activeSymbolRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    }
+  }, [currentOpenedSymbol, selectedList]);
 
   return (
     <Card className="w-80 max-h-96 bg-background border shadow-lg">
@@ -882,10 +922,18 @@ export default function FloatingWidget({ onClose, onMinimize, onStateChange, ini
                       const inOtherLists = isSymbolInOtherLists(symbol);
                       const starClass = inOtherLists ? 'text-warning' : 'text-muted-foreground opacity-50';
 
+                      // Check if symbol is currently opened (matches URL)
+                      const isCurrent = currentOpenedSymbol === symbol.fullSymbol ||
+                        currentOpenedSymbol === `${symbol.exchange}:${symbol.symbol}`;
+
                       return (
                         <div
                           key={symbol.fullSymbol}
-                          className="flex items-center justify-between p-2 rounded-md bg-background-muted hover:bg-background-muted/80 transition-colors group"
+                          ref={isCurrent ? activeSymbolRef : null}
+                          className={`flex items-center justify-between p-2 rounded-lg border transition-all duration-150 group ${isCurrent
+                            ? 'border-primary-500/50 bg-primary-500/10'
+                            : 'border-transparent bg-background-muted hover:bg-background-muted/80 hover:border-border/30'
+                            }`}
                         >
                           <div className="flex items-center gap-2 min-w-0 flex-1">
                             {/* Star icon for multi-list indicator */}
@@ -907,7 +955,7 @@ export default function FloatingWidget({ onClose, onMinimize, onStateChange, ini
                                 {symbol.exchange}
                               </Badge>
                               <div className="min-w-0">
-                                <div className="text-sm font-medium text-foreground truncate">{symbol.symbol}</div>
+                                <div className={`text-sm font-medium truncate ${isCurrent ? 'text-primary-400' : 'text-foreground'}`}>{symbol.symbol}</div>
                                 {symbol.stockName && (
                                   <div className="text-xs text-muted-foreground truncate">{symbol.stockName}</div>
                                 )}

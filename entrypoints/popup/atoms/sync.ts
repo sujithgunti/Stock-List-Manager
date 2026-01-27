@@ -4,6 +4,8 @@ import { useEffect, useRef } from 'react';
 import {
     collection,
     onSnapshot,
+    doc,
+    setDoc
 } from 'firebase/firestore';
 import { getFirebaseDb } from '../lib/firebase';
 import {
@@ -33,8 +35,61 @@ export const syncStatusAtom = atom<SyncStatus>('idle');
 // ==========================================
 // Hooks
 // ==========================================
-// Hooks
-export const useFirestoreSync = () => {
+
+// 1. User Profile Sync (Always Active)
+// Listens for 'isPremium' status changes
+export const useUserProfileSync = () => {
+    const [authUser, setAuthUser] = useAtom(authUserAtom);
+
+    useEffect(() => {
+        if (!authUser?.uid) return;
+
+        const db = getFirebaseDb();
+        const userDocRef = doc(db, 'users', authUser.uid);
+
+        console.log('👤 Listening to User Profile:', authUser.uid);
+
+        const unsubscribe = onSnapshot(userDocRef, (docSnapshot) => {
+            if (docSnapshot.exists()) {
+                const data = docSnapshot.data();
+                const isPremium = data.isPremium === true;
+                const trialStartDate = data.trialStartDate;
+
+                // Only update if changed to avoid loops
+                if (authUser.isPremium !== isPremium || authUser.trialStartDate !== trialStartDate) {
+                    console.log('💎 User Profile Updated (Premium):', isPremium);
+                    setAuthUser((prev) => {
+                        if (!prev) return prev;
+                        return {
+                            ...prev,
+                            isPremium,
+                            trialStartDate
+                        };
+                    });
+                }
+            } else {
+                console.log('👤 User Profile does not exist. Creating default profile...');
+                // Auto-create profile if missing so fields like isPremium exist
+                setDoc(userDocRef, {
+                    uid: authUser.uid,
+                    email: authUser.email || null,
+                    displayName: authUser.displayName || null,
+                    isPremium: false,
+                    createdAt: new Date(),
+                    updatedAt: new Date()
+                }, { merge: true }).catch(err => {
+                    console.error("❌ Failed to create user profile:", err);
+                });
+            }
+        });
+
+        return () => unsubscribe();
+    }, [authUser?.uid, setAuthUser]);
+};
+
+// 2. Data Sync (Gated by Premium)
+// Only syncs symbol lists if user is Premium
+export const useDataSync = () => {
     const authUser = useAtomValue(authUserAtom);
     const [symbolLists, setSymbolLists] = useAtom(symbolListsAtom); // Need value to check for initial upload
     const setSyncStatus = useSetAtom(syncStatusAtom);
@@ -53,13 +108,22 @@ export const useFirestoreSync = () => {
             return;
         }
 
+        // 2. Freemium Gate: Must be Premium to Sync Lists
+        if (!authUser.isPremium) {
+            // Explicitly set status to idle if not premium
+            if (authUser.isPremium === false) {
+                setSyncStatus('idle');
+            }
+            return;
+        }
+
         console.log('🔄 Starting Firestore Sync for user:', authUser.uid);
         setSyncStatus('syncing');
 
         const db = getFirebaseDb();
         const userListsRef = collection(db, 'users', authUser.uid, 'lists');
 
-        // 2. Real-time Listener (Read from Cloud)
+        // 3. Real-time Listener (Read from Cloud)
         const unsubscribe = onSnapshot(
             userListsRef,
             (snapshot) => {
@@ -69,7 +133,7 @@ export const useFirestoreSync = () => {
                     cloudLists.push(convertTimestamps(data) as SymbolList);
                 });
 
-                // 3. Deduplicate: Cloud might have duplicates from previous aggressive restores
+                // 4. Deduplicate: Cloud might have duplicates from previous aggressive restores
                 // We keep the first one found and delete others
                 const uniqueListsMap = new Map<string, SymbolList>();
                 const duplicatesToDelete: SymbolList[] = [];
@@ -79,7 +143,6 @@ export const useFirestoreSync = () => {
                     if (uniqueListsMap.has(key)) {
                         const existing = uniqueListsMap.get(key)!;
                         // Keep the one with more symbols? Or just the first one?
-                        // If one has symbols and other is empty, keep populated one.
                         if ((list.symbols?.length || 0) > (existing.symbols?.length || 0)) {
                             duplicatesToDelete.push(existing);
                             uniqueListsMap.set(key, list);
@@ -94,13 +157,12 @@ export const useFirestoreSync = () => {
                 // Delete duplicates from cloud to clean up
                 duplicatesToDelete.forEach(dup => {
                     console.log('🗑️ Deleting duplicate list from cloud:', dup.name, dup.id);
-                    // Important: Don't await here inside synchronous callback, fire and forget
                     deleteListFromFirestore(authUser.uid, dup.id);
                 });
 
                 const uniqueLists = Array.from(uniqueListsMap.values());
 
-                // 4. Merge with Predefined Lists (Restore if missing)
+                // 5. Merge with Predefined Lists (Restore if missing)
                 const mergedLists = [...uniqueLists];
                 let listsAdded = false;
 
@@ -214,7 +276,7 @@ export const useFirestoreSync = () => {
 
         // Cleanup listener on unmount or logout
         return () => unsubscribe();
-    }, [authUser?.uid]); // Only re-run if UID changes
+    }, [authUser?.uid, authUser?.isPremium]); // Re-run if UID or Premium status changes
 
     return;
 };
